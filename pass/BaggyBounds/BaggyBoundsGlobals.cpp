@@ -117,6 +117,6 @@ namespace {
 
 char BaggyBoundsGlobals::ID = 0;
 static RegisterPass<BaggyBoundsGlobals>
-    X("baggy", "Baggy Bounds Pass",
+    X("baggy-globals", "Baggy Bounds Globals Initializaiton Pass",
         false /* Only looks at CFG */,
         false /* Analysis Pass */);

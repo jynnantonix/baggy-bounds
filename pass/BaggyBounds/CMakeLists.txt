@@ -1,3 +1,3 @@
-add_llvm_loadable_module(BaggyBounds
-  BaggyBounds.cpp
+add_llvm_loadable_module(BaggyBoundsGlobals
+  BaggyBoundsGlobals.cpp
 )
