@@ -33,7 +33,7 @@ namespace {
       baseint = builder.CreatePtrToInt(base, IntegerType::get(baggyBlock->getContext(), 32));
       tableoffset = builder.CreateAShr(baseint, 4);
       hack = builder.CreateIntToPtr(tablestart, Type::getInt8PtrTy(baggyBlock->getContext()));
-      tableaddr = builder.CreateInBoundsGEP(sizeTable, tableoffset);
+      tableaddr = builder.CreateInBoundsGEP(hack, tableoffset);
       size = builder.CreateLoad(tableaddr, "alloc.size");
 
       // insert arithmetic
