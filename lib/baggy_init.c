@@ -7,7 +7,7 @@
 
 #include "address_constants.h"
 
-char* baggy_size_table;
+unsigned char* baggy_size_table;
 
 unsigned int page_size;
 void sigsegv_handler(int signal_number, siginfo_t* siginfo, void* context) {
@@ -22,8 +22,10 @@ void sigsegv_handler(int signal_number, siginfo_t* siginfo, void* context) {
 	}
 }
 
+void buddy_allocator_init();
+
 void setup_table() {
-	baggy_size_table = (char*) TABLE_START;
+	baggy_size_table = (unsigned char*) TABLE_START;
 	page_size = (unsigned int) sysconf(_SC_PAGE_SIZE);
 
 	struct sigaction act;
@@ -32,6 +34,7 @@ void setup_table() {
 	act.sa_flags = SA_SIGINFO;
 
 	sigaction(SIGSEGV, &act, NULL);
+	buddy_allocator_init();
 }
 
 void move_stack();
