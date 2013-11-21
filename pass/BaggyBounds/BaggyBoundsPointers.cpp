@@ -8,6 +8,7 @@
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -33,20 +34,35 @@ namespace {
       baseint = builder.CreatePtrToInt(base, IntegerType::get(baggyBlock->getContext(), 32));
       tableoffset = builder.CreateAShr(baseint, 4);
       hack = builder.CreateIntToPtr(tablestart, Type::getInt8PtrTy(baggyBlock->getContext()));
-      tableaddr = builder.CreateInBoundsGEP(sizeTable, tableoffset);
+      tableaddr = builder.CreateInBoundsGEP(hack, tableoffset);
       size = builder.CreateLoad(tableaddr, "alloc.size");
 
       // insert arithmetic
       baggyBlock->getInstList().push_back(i);
 
       // baggy check
-      Value *combine, *instint, *result, *sizeint, *br;
+      Value *combine, *instint, *result, *sizeint;
 
       instint = builder.CreatePtrToInt(i, IntegerType::get(baggyBlock->getContext(), 32));
       combine = builder.CreateXor(baseint, instint);
       sizeint = builder.CreateZExtOrBitCast(size, IntegerType::get(baggyBlock->getContext(), 32));
       result = builder.CreateAShr(combine, sizeint);
-      br = builder.CreateBr(orig);
+
+      // Create the slowpath block
+      BasicBlock *slowPathBlock = BasicBlock::Create(baggyBlock->getContext(), "baggy.slowPath",
+                                                     baggyBlock->getParent(), orig);
+      IRBuilder<> slowPathBuilder(slowPathBlock);
+      Value *slowPathBr;
+
+      slowPathBr = slowPathBuilder.CreateBr(orig);
+
+      // Branch to slowpath if necessary
+      MDBuilder weightBuilder(baggyBlock->getContext());
+      MDNode *branchWeights;
+      Value *baggyCheck, *baggyBr;
+      baggyCheck = builder.CreateICmpEQ(result,ConstantInt::get(IntegerType::get(baggyBlock->getContext(), 32), 0));
+      branchWeights = weightBuilder.createBranchWeights(99, 1);
+      baggyBr = builder.CreateCondBr(baggyCheck, orig, slowPathBlock, branchWeights);
 
       return baggyBlock;
     }
