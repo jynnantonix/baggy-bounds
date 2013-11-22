@@ -174,7 +174,6 @@ void buddy_allocator_init() {
 	heap_size = ((unsigned int)heap_end) - ((unsigned int)heap_start);
 	assert(((unsigned int)heap_end) % SLOT_SIZE == 0);
 
-
 	// update the baggy table so the data after TABLE_END and before the beginning
 	// of the real heap can't be reused
 	unsigned slot_id = 0;
