@@ -10,6 +10,10 @@
 #define FREE 0
 #define USED 1
 
+#define malloc(...) (USE_BUDDY_ALLOC)
+#define free(...) (USE_BUDDY_FREE)
+#define realloc(...) (USE_BUDDY_REALLOC)
+
 extern unsigned char* baggy_size_table;
 
 struct list_node_t {
@@ -226,6 +230,23 @@ void test_free() {
 	// check that we are actually reusing the block, and not increasing
 	// the size of the heap
 	assert(heap_size == old_heap_size);
+	printf("simple buddy_free test passed..\n");
+	fflush(stdout);
+}
+
+void test_realloc() {
+	int *arr = (int*)buddy_malloc(sizeof(int) * 1000);
+	int i;
+	for (i = 0; i < 1000; ++i) {
+		arr[i] = i * i * i - 3 * i + 124;
+	}
+	arr = (int*)buddy_realloc(arr, sizeof(int) * 2000);
+	assert(arr != NULL);
+	for (i = 0; i < 1000; ++i) {
+		assert(arr[i] == i * i * i - 3 * i + 124);
+	}
+	printf("simple buddy_realloc test passed..\n");
+	fflush(stdout);
 }
 
 void buddy_allocator_init() {
@@ -347,6 +368,22 @@ void* buddy_malloc(size_t size) {
 
 void* buddy_realloc(void* ptr, size_t size) {
 	// TODO(aanastasov): implement realloc by using malloc and free
+	void* newptr;
+	size_t copy_size;
+	
+	newptr = buddy_malloc(size);
+	if (newptr == NULL) {
+		return NULL;
+	}
+
+	copy_size = 1 << get_logsize(get_slot_metadata(get_slot_id(ptr)));
+	if (size < copy_size)
+		copy_size = size;	
+
+	memcpy(newptr, ptr, copy_size);
+
+	buddy_free(ptr);
+	return newptr;
 }
 
 void buddy_free(void* ptr) {
