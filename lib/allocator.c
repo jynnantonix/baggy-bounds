@@ -22,7 +22,7 @@ typedef struct list_node_t list_node_t;
 inline unsigned int get_slot_id(char*);
 inline void table_mark_free(char*, unsigned int);
 inline unsigned char get_slot_metadata(int);
-inline void set_slot_metadata(int, unsigned char);
+inline void set_slot_metadata(unsigned int, unsigned char);
 inline unsigned char form_metadata(unsigned char, unsigned char);
 inline unsigned char is_used(unsigned char);
 inline unsigned char get_logsize(unsigned char);
@@ -57,11 +57,14 @@ inline unsigned int get_slot_id(char* ptr) {
 	return (((unsigned int)ptr) - ((unsigned int)heap_start)) / SLOT_SIZE;
 }
 
+// requires size to be a power of two
 inline void table_mark_free(char* ptr, unsigned int size) {
+	assert((size & (size - 1)) == 0);
 	unsigned int log2_size = get_log2(size);
 	unsigned int slot_id = get_slot_id(ptr);
-	char* after_last_slot = ptr + (size / sizeof(char));
-	while (((unsigned int)heap_start) + slot_id * SLOT_SIZE < ((unsigned int)after_last_slot)) {
+	char* first_address_after_last_slot = ptr + (size / sizeof(char));
+	while (((unsigned int)heap_start) + slot_id * SLOT_SIZE < ((unsigned int)first_address_after_last_slot)) {
+		// TODO(aanastasov): try to optimize by just setting the first slot, not all of them
 		set_slot_metadata(slot_id, form_metadata(log2_size, FREE));
 		slot_id++;
 	}
@@ -71,10 +74,8 @@ inline unsigned char get_slot_metadata(int slot_id) {
 	return (unsigned char)(*(baggy_size_table + slot_id * (SLOT_SIZE / sizeof(unsigned char))));
 }
 
-inline void set_slot_metadata(int slot_id, unsigned char value) {
-	unsigned char* slot_entry_metadata = baggy_size_table + 
-		slot_id * (SLOT_SIZE / sizeof(unsigned char));
-	*slot_entry_metadata = value;
+inline void set_slot_metadata(unsigned slot_id, unsigned char value) {
+	baggy_size_table[slot_id] = value;
 }
 
 inline unsigned char form_metadata(unsigned char logsize, unsigned char is_used) {
@@ -161,29 +162,31 @@ void buddy_allocator_init() {
 		dummy_last[bin_id]->prev = dummy_first[bin_id];
 		dummy_last[bin_id]->next = NULL;
 	}
-	heap_start = (char*)TABLE_END;
+	heap_start = (char*)0;
 	heap_end = (char*)sbrk(0);  // allocated heap is [heap_start, heap_end)
 
 	// align heap_end to a multiple of SLOT_SIZE
 	unsigned int slot_size_reminder = SLOT_SIZE - ((unsigned int)heap_end) % SLOT_SIZE;
 	if (slot_size_reminder < SLOT_SIZE) {
-		char *unused = sbrk(slot_size_reminder);
+		sbrk(slot_size_reminder);  // throw away
 		heap_end = (char*)sbrk(0);
 	}
 	heap_size = ((unsigned int)heap_end) - ((unsigned int)heap_start);
 	assert(((unsigned int)heap_end) % SLOT_SIZE == 0);
-	
+
+
 	// update the baggy table so the data after TABLE_END and before the beginning
 	// of the real heap can't be reused
-	int slot_id = 0;
+	unsigned slot_id = 0;
 	while (((unsigned int)heap_start) + slot_id * SLOT_SIZE < ((unsigned int)heap_end)) {
 		set_slot_metadata(slot_id, form_metadata(get_log2(SLOT_SIZE), USED));
 		slot_id++;
 	}
-/*
+
 	// increase the size of the heap to an exact power of 2
 	while ((heap_size & (heap_size - 1)) != 0) {
 		bin_id = 0;
+		// find the lowest bit of heap size, and increase the heap by that amount
 		while ((heap_size & (1 << bin_id)) == 0) {
 			bin_id++;
 		}
@@ -191,14 +194,15 @@ void buddy_allocator_init() {
 		char* ptr = (char*)sbrk(size);
 		if (size >= SLOT_SIZE) {
 			table_mark_free(ptr, size);
-			list_append(ptr, bin_id);
+			list_append((list_node_t*)ptr, bin_id);
 		} else {
-			// throw away
+			// too small, throw away
 		}
 		heap_end += size;
 		heap_size += size;
+		assert(heap_end == (char*)sbrk(0));
 	}
-	assert((heap_size & (heap_size - 1)) == 0);*/
+	assert((heap_size & (heap_size - 1)) == 0);
 }
 
 void* malloc(size_t size) {
