@@ -28,9 +28,9 @@ inline unsigned char is_used(unsigned char);
 inline unsigned char get_logsize(unsigned char);
 inline unsigned char get_log2(unsigned int);
 
-void* malloc(size_t);
-void* realloc(void*, size_t);
-void free(void*);
+void* buddy_malloc(size_t);
+void* buddy_realloc(void*, size_t);
+void buddy_free(void*);
 
 char* heap_start;
 char* heap_end;
@@ -77,8 +77,7 @@ inline void table_mark(char* ptr, unsigned int size, unsigned char used) {
 }
 
 inline unsigned char get_slot_metadata(int slot_id) {
-	return (unsigned char)(*(baggy_size_table +
-		slot_id * (SLOT_SIZE / sizeof(unsigned char))));
+	return (unsigned char)baggy_size_table[slot_id];
 }
 
 inline void set_slot_metadata(unsigned int slot_id, unsigned char value) {
@@ -156,12 +155,22 @@ void test_lists() {
 }
 
 void test_malloc() {
-	int* a = (int*)malloc(sizeof(int));
-	int* b = (int*)malloc(sizeof(int));
-	//*a = 5;
-	//*b = 7;
-	//*b = *a - 100;
-	//assert(*b == -95);
+	int* a = (int*)buddy_malloc(sizeof(int));
+	int* b = (int*)buddy_malloc(sizeof(int));
+	*a = 5;
+	*b = 7;
+	*b = *a - 100;
+	assert(*b == -95);
+	assert(*a == 5);
+
+	int* arr = (int*)buddy_malloc(sizeof(int) * 100);
+	int i;
+	for (i = 0; i < 128; ++i) {
+		arr[i] = i;
+	}
+	for (i = 127; i >= 0; --i) {
+		assert(arr[i] == i);
+	}
 }
 
 void buddy_allocator_init() {
@@ -222,7 +231,7 @@ void buddy_allocator_init() {
 	assert((heap_size & (heap_size - 1)) == 0);
 }
 
-void* malloc(size_t size) {
+void* buddy_malloc(size_t size) {
 	if (size == 0) {
 		return NULL;
 	}
@@ -264,6 +273,7 @@ void* malloc(size_t size) {
 	assert(ptr != NULL);
 	assert(!is_used(get_slot_metadata(get_slot_id(ptr))));
 	assert(get_logsize(get_slot_metadata(get_slot_id(ptr))) == bin_id);
+
 	// if the block is too big, split into pieces, and populate bins
 	while ((1 << (bin_id - 1)) >= size_to_allocate) {
 		char* right_half_ptr = ptr + (1 << (bin_id - 1));
@@ -280,11 +290,11 @@ void* malloc(size_t size) {
 	return (void*)ptr;
 }
 
-void* realloc(void* ptr, size_t size) {
+void* buddy_realloc(void* ptr, size_t size) {
 	// go with the easiest first implementation in the beginning
 }
 
-void free(void* ptr) {
+void buddy_free(void* ptr) {
 	// free don't do anything in the beginning, just add the pointer to the particular
 	// bin; however the next revision would need to allow for coalescing blocks that
 	// are both free
