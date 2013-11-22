@@ -28,6 +28,10 @@ inline unsigned char is_used(unsigned char);
 inline unsigned char get_logsize(unsigned char);
 inline unsigned char get_log2(unsigned int);
 
+void* malloc(size_t);
+void* realloc(void*, size_t);
+void free(void*);
+
 char* heap_start;
 char* heap_end;
 unsigned int heap_size;  // the size of the heap in bytes
@@ -58,23 +62,26 @@ inline unsigned int get_slot_id(char* ptr) {
 }
 
 // requires size to be a power of two
-inline void table_mark_free(char* ptr, unsigned int size) {
+inline void table_mark(char* ptr, unsigned int size, unsigned char used) {
 	assert((size & (size - 1)) == 0);
 	unsigned int log2_size = get_log2(size);
 	unsigned int slot_id = get_slot_id(ptr);
 	char* first_address_after_last_slot = ptr + (size / sizeof(char));
-	while (((unsigned int)heap_start) + slot_id * SLOT_SIZE < ((unsigned int)first_address_after_last_slot)) {
-		// TODO(aanastasov): try to optimize by just setting the first slot, not all of them
-		set_slot_metadata(slot_id, form_metadata(log2_size, FREE));
+	while (((unsigned int)heap_start) + slot_id * SLOT_SIZE <
+			((unsigned int)first_address_after_last_slot)) {
+		// TODO(aanastasov): try to optimize by just setting the first slot,
+		// not all of them
+		set_slot_metadata(slot_id, form_metadata(log2_size, used));
 		slot_id++;
 	}
 }
 
 inline unsigned char get_slot_metadata(int slot_id) {
-	return (unsigned char)(*(baggy_size_table + slot_id * (SLOT_SIZE / sizeof(unsigned char))));
+	return (unsigned char)(*(baggy_size_table +
+		slot_id * (SLOT_SIZE / sizeof(unsigned char))));
 }
 
-inline void set_slot_metadata(unsigned slot_id, unsigned char value) {
+inline void set_slot_metadata(unsigned int slot_id, unsigned char value) {
 	baggy_size_table[slot_id] = value;
 }
 
@@ -148,6 +155,15 @@ void test_lists() {
 	fflush(stdout);
 }
 
+void test_malloc() {
+	int* a = (int*)malloc(sizeof(int));
+	int* b = (int*)malloc(sizeof(int));
+	//*a = 5;
+	//*b = 7;
+	//*b = *a - 100;
+	//assert(*b == -95);
+}
+
 void buddy_allocator_init() {
 	// initialize the free lists
 	unsigned int bin_id;
@@ -194,7 +210,7 @@ void buddy_allocator_init() {
 		unsigned int size = 1 << bin_id;
 		char* ptr = (char*)sbrk(size);
 		if (size >= SLOT_SIZE) {
-			table_mark_free(ptr, size);
+			table_mark(ptr, size, FREE);
 			list_append((list_node_t*)ptr, bin_id);
 		} else {
 			// too small, throw away
@@ -207,59 +223,61 @@ void buddy_allocator_init() {
 }
 
 void* malloc(size_t size) {
-/*
-	if (size == 0) {	
+	if (size == 0) {
 		return NULL;
 	}
+	// allocate 2^x, where x >= size such that x is smallest
 	unsigned int size_to_allocate = 1 << get_log2(size);
 	if (size_to_allocate < SLOT_SIZE) {
 		size_to_allocate = SLOT_SIZE;
 	}
-	unsigned char log2 = get_log2(size_to_allocate);
 	char* ptr;
-	int bin_id;
-	for (bin_id = log2; bin_id < NUM_BINS && freelist_head[bin] == NULL; ++bin_id);
+	unsigned char log2 = get_log2(size_to_allocate);
+	unsigned int bin_id;
+	// find first-fit block
+	for (bin_id = log2; bin_id < NUM_BINS; ++bin_id) {
+		if (dummy_first[bin_id]->next->is_dummy == 0)
+			break;
+	}
 	if (bin_id < NUM_BINS) {
 		// grab the first element from the list
-		
-		// TODO(aanastasov): actually grab the element from there
-	} else (bin_id >= NUM_BINS) {
+		ptr = (void*)dummy_first[bin_id]->next;
+	} else { // bin_id >= NUM_BINS
 		// try doubling the heap until allocate the required block
 		unsigned int size_allocated;
 		do {
 			unsigned int heapsize_log2 = get_log2(heap_size);
-			assert(get_log2(heap_size + 1) != heapsize_log2);  // the size of the heap must be a power of 2
+			// the size of the heap must be an exact power of two
+			assert(get_log2(heap_size + 1) != heapsize_log2);
 			size_allocated = heap_size;
 			bin_id = heapsize_log2;
-			// TODO(aanastasov): Consider the case of not being able to allocate memory, and return NULL.
+			// TODO(aanastasov): Consider the case of not being able
+			// to allocate memory, and return NULL.
 			ptr = (char*)sbrk(heap_size);
-			table_mark_free(ptr, heap_size);
-			list_append(ptr, bin_id);
+			table_mark(ptr, heap_size, FREE);
+			list_append((list_node_t*)ptr, bin_id);
 			heap_end += heap_size;
 			heap_size *= 2;
 		} while (size_to_allocate > size_allocated);
 	}
 
 	assert(ptr != NULL);
-	// if too big of a block, split
+	assert(!is_used(get_slot_metadata(get_slot_id(ptr))));
+	assert(get_logsize(get_slot_metadata(get_slot_id(ptr))) == bin_id);
+	// if the block is too big, split into pieces, and populate bins
 	while ((1 << (bin_id - 1)) >= size_to_allocate) {
 		char* right_half_ptr = ptr + (1 << (bin_id - 1));
-		table_mark_free(right_half_ptr, 1 << (bin_id - 1));
-		list_append(right_half_ptr, bin_id - 1);
+		table_mark(right_half_ptr, 1 << (bin_id - 1), FREE);
+		list_append((list_node_t*)right_half_ptr, bin_id - 1);
+		assert(get_logsize(get_slot_metadata(get_slot_id(right_half_ptr))) ==
+			bin_id - 1);
+		assert(is_used(get_slot_metadata(get_slot_id(right_half_ptr))) == 0);
 		bin_id--;
 	}
-*/	
-	// check if the bin of size round(log_2(size)) is free
-	// and grab an element from it, if possible
-	// otherwise iterate over the free lists with bigger sizes
-	// until find the smallest one that contains a free block
-	// and split that block into blocks of powers of two such that the smallest
-	// piece is of size log_2(size), and then populate the other free lists with
-	// the pieces that are left unused
-	// if this doesn't work, then we have to double the size of the heap, and apply
-	// the same thing as above where we get a bigger power of two than the one we 
-	// need and continually split the blocks
-	// need to take care of putting the right information in the baggy_size_table
+	// mark as not free, and return
+	table_mark(ptr, 1 << bin_id, USED);
+	list_remove((list_node_t*)ptr);
+	return (void*)ptr;
 }
 
 void* realloc(void* ptr, size_t size) {
