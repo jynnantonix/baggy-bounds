@@ -26,7 +26,7 @@ namespace {
                                                   orig->getParent(), orig);
       IRBuilder<> builder(baggyBlock);
       Value *tablestart = ConstantInt::get(IntegerType::get(baggyBlock->getContext(), 32), 0x78000000);
-      Value *base, *baseint, *tableoffset, *tableaddr, *hack, *inst;
+      Value *base, *baseint, *tableoffset, *tableaddr, *hack, *inst, *sizeint, *tmpsize;
       LoadInst *size;
 
       // Baggy lookup
@@ -36,16 +36,17 @@ namespace {
       hack = builder.CreateIntToPtr(tablestart, Type::getInt8PtrTy(baggyBlock->getContext()));
       tableaddr = builder.CreateInBoundsGEP(hack, tableoffset);
       size = builder.CreateLoad(tableaddr, "alloc.size");
+      tmpsize = builder.CreateZExtOrBitCast(size, IntegerType::get(baggyBlock->getContext(), 32));
+      sizeint = builder.CreateAnd(tmpsize, 0x1F);
 
       // insert arithmetic
       baggyBlock->getInstList().push_back(i);
 
       // baggy check
-      Value *combine, *instint, *result, *sizeint;
+      Value *combine, *instint, *result;
 
       instint = builder.CreatePtrToInt(i, IntegerType::get(baggyBlock->getContext(), 32));
       combine = builder.CreateXor(baseint, instint);
-      sizeint = builder.CreateZExtOrBitCast(size, IntegerType::get(baggyBlock->getContext(), 32));
       result = builder.CreateAShr(combine, sizeint);
 
       // Create the slowpath block
