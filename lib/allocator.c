@@ -164,13 +164,46 @@ void test_malloc() {
 	assert(*a == 5);
 
 	int* arr = (int*)buddy_malloc(sizeof(int) * 100);
-	int i;
+	int i, j;
 	for (i = 0; i < 128; ++i) {
 		arr[i] = i;
 	}
 	for (i = 127; i >= 0; --i) {
 		assert(arr[i] == i);
 	}
+	printf("basic malloc tests passed..\n");
+	fflush(stdout);
+
+	int* block[128];
+	for (i = 0; i < 128; ++i) {
+		block[i] = (int*)buddy_malloc(sizeof(int) * 100);
+		for (j = 0; j < 128; ++j) {
+			block[i][j] = j * j + 2 * j - 10;
+		}
+	}
+	for (i = 0; i < 128; ++i) {
+		for (j = 0; j < 128; ++j) {
+			assert(block[i][j] == j * j + 2 * j - 10);
+		}
+	}
+	printf("all allocation are powers of 2 malloc test passed..\n");
+	fflush(stdout);
+	
+	int found_mismatch = 0;
+	for (i = 0; i < 128; ++i) {
+		for (j = 0; j < 128 + 1; ++j) {
+			block[i][j] = j * j + 2 * j - 10;
+		}
+	}
+	for (i = 0; i < 128; ++i) {
+		for (j = 0; j < 128; ++j) {
+			if (block[i][j] != j * 2 + 2 * j - 10)
+				found_mismatch = 1;
+		}
+	}
+	assert(found_mismatch);
+	printf("buffer overflow malloc test passed..\n");
+	fflush(stdout);
 }
 
 void buddy_allocator_init() {
