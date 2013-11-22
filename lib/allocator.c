@@ -66,6 +66,7 @@ inline void table_mark(char* ptr, unsigned int size, unsigned char used) {
 	assert((size & (size - 1)) == 0);
 	unsigned int log2_size = get_log2(size);
 	unsigned int slot_id = get_slot_id(ptr);
+	unsigned int first_slot_id = get_slot_id(ptr);
 	char* first_address_after_last_slot = ptr + (size / sizeof(char));
 	while (((unsigned int)heap_start) + slot_id * SLOT_SIZE <
 			((unsigned int)first_address_after_last_slot)) {
@@ -74,6 +75,7 @@ inline void table_mark(char* ptr, unsigned int size, unsigned char used) {
 		set_slot_metadata(slot_id, form_metadata(log2_size, used));
 		slot_id++;
 	}
+	assert(slot_id - first_slot_id == size / SLOT_SIZE);
 }
 
 inline unsigned char get_slot_metadata(int slot_id) {
@@ -203,6 +205,29 @@ void test_malloc() {
 	fflush(stdout);
 }
 
+void test_free() {
+	int *arr = (int*)buddy_malloc(sizeof(int) * (1 << 23));
+	int i;
+	for (i = 0; i < (1 << 23); ++i) {
+		arr[i] = i * i + 2 * i - 30;
+	}
+	for (i = 0; i < (1 << 23); ++i) {
+		assert(arr[i] == i * i + 2 * i - 30);
+	}
+	unsigned int old_heap_size = heap_size;
+	buddy_free(arr);
+	arr = (int*)buddy_malloc(sizeof(int) * (1 << 23));
+	for (i = 0; i < (1 << 23); ++i) {
+		arr[i] = i * i + 3 * i - 50;
+	}
+	for (i = 0; i < (1 << 23); ++i) {
+		assert(arr[i] == i * i + 3 * i - 50);
+	}
+	// check that we are actually reusing the block, and not increasing
+	// the size of the heap
+	assert(heap_size == old_heap_size);
+}
+
 void buddy_allocator_init() {
 	// initialize the free lists
 	unsigned int bin_id;
@@ -326,7 +351,7 @@ void* buddy_realloc(void* ptr, size_t size) {
 
 void buddy_free(void* ptr) {
 	// TODO(aanastasov): implement coalescing
-	unsigned int size = get_slot_metadata(get_slot_id(ptr));
+	unsigned int size = 1 << get_logsize(get_slot_metadata(get_slot_id(ptr)));
 	unsigned int bin_id = get_log2(size);
 	table_mark(ptr, size, FREE);
 	list_append((list_node_t*)ptr, bin_id);
