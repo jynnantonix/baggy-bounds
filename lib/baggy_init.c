@@ -34,7 +34,6 @@ void setup_table() {
 	act.sa_flags = SA_SIGINFO;
 
 	sigaction(SIGSEGV, &act, NULL);
-	buddy_allocator_init();
 }
 
 void move_stack();
@@ -66,5 +65,7 @@ void baggy_init() {
 		setup_table();
 
 		setup_stack();
+		
+		buddy_allocator_init();
 	}
 }
