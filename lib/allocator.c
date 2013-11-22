@@ -26,7 +26,7 @@ inline void set_slot_metadata(unsigned int, unsigned char);
 inline unsigned char form_metadata(unsigned char, unsigned char);
 inline unsigned char is_used(unsigned char);
 inline unsigned char get_logsize(unsigned char);
-inline unsigned char get_log2(unsigned int);
+inline unsigned int get_log2(unsigned int);
 
 void* buddy_malloc(size_t);
 void* buddy_realloc(void*, size_t);
@@ -98,7 +98,7 @@ inline unsigned char get_logsize(unsigned char metadata) {
 
 // returns smallest x such that 2^x >= size
 // requires size > 0
-inline unsigned char get_log2(unsigned int size) {
+inline unsigned int get_log2(unsigned int size) {
 	unsigned char res = 0;
 	size--;
 	while (size > 0) {
@@ -186,23 +186,20 @@ void test_malloc() {
 			assert(block[i][j] == j * j + 2 * j - 10);
 		}
 	}
-	printf("all allocation are powers of 2 malloc test passed..\n");
+	printf("multiple allocations are powers of 2 malloc test passed..\n");
 	fflush(stdout);
-	
-	int found_mismatch = 0;
-	for (i = 0; i < 128; ++i) {
-		for (j = 0; j < 128 + 1; ++j) {
-			block[i][j] = j * j + 2 * j - 10;
+
+	int* segment[24];
+	for (i = 0; i < 24; ++i) {
+		segment[i] = (int*)buddy_malloc(sizeof(int) * (1 << i));
+		for (j = 0; j < (1 << i); ++j) {
+			segment[i][j] = j * j + 2 * j - 10;
 		}
 	}
-	for (i = 0; i < 128; ++i) {
-		for (j = 0; j < 128; ++j) {
-			if (block[i][j] != j * 2 + 2 * j - 10)
-				found_mismatch = 1;
-		}
-	}
-	assert(found_mismatch);
-	printf("buffer overflow malloc test passed..\n");
+	for (i = 0; i < 24; ++i)
+		for (j = 0; j < (1 << i); ++j)
+			assert(segment[i][j] == j * j + 2 * j - 10);
+	printf("allocate big blocks malloc test passed..\n");
 	fflush(stdout);
 }
 
@@ -269,7 +266,7 @@ void* buddy_malloc(size_t size) {
 		return NULL;
 	}
 	// allocate 2^x, where x >= size such that x is smallest
-	unsigned int size_to_allocate = 1 << get_log2(size);
+	unsigned int size_to_allocate = 1 << ((unsigned int)get_log2(size));
 	if (size_to_allocate < SLOT_SIZE) {
 		size_to_allocate = SLOT_SIZE;
 	}
@@ -324,11 +321,13 @@ void* buddy_malloc(size_t size) {
 }
 
 void* buddy_realloc(void* ptr, size_t size) {
-	// go with the easiest first implementation in the beginning
+	// TODO(aanastasov): implement realloc by using malloc and free
 }
 
 void buddy_free(void* ptr) {
-	// free don't do anything in the beginning, just add the pointer to the particular
-	// bin; however the next revision would need to allow for coalescing blocks that
-	// are both free
+	// TODO(aanastasov): implement coalescing
+	unsigned int size = get_slot_metadata(get_slot_id(ptr));
+	unsigned int bin_id = get_log2(size);
+	table_mark(ptr, size, FREE);
+	list_append((list_node_t*)ptr, bin_id);
 }
