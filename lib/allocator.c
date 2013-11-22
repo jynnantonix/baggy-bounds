@@ -183,6 +183,8 @@ void buddy_allocator_init() {
 		slot_id++;
 	}
 
+	// TODO(aanastasov): Move the following code in the malloc function.
+
 	// increase the size of the heap to an exact power of 2
 	while ((heap_size & (heap_size - 1)) != 0) {
 		bin_id = 0;
