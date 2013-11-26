@@ -106,11 +106,23 @@ static inline unsigned char get_logsize(unsigned char metadata) {
 // requires size > 0
 static inline unsigned int get_log2(unsigned int size) {
 	unsigned char res = 0;
-	size--;
-	while (size > 0) {
-		size >>= 1;
-		++res;
+
+	if ((size & (size-1)) == 0) {
+		/* size is already a power of 2 */
+		res = size;
+	} else {
+		/* smear the highest set bit across all the lower bits */
+		size |= (size >>  1);
+		size |= (size >>  2);
+		size |= (size >>  4);
+		size |= (size >>  8);
+		size |= (size >> 16);
+
+		/* flip all the bits and XOR to get the power of 2 we need */
+		size = ~size;
+		res = size ^ (size << 1);
 	}
+
 	return res;
 }
 
