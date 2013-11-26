@@ -21,7 +21,7 @@ namespace {
     static char ID;
     BaggyBoundsPointers() : FunctionPass(ID) {}
     Constant *sizeTable;
-    Function *slowPathFunc;
+    Constant  *slowPathFunc;
 
     BasicBlock *createBaggyBlock(BasicBlock *orig, GetElementPtrInst *i, PHINode *phi) {
       BasicBlock *baggyBlock = BasicBlock::Create(orig->getContext(), "baggy.check",
@@ -55,9 +55,12 @@ namespace {
       BasicBlock *slowPathBlock = BasicBlock::Create(baggyBlock->getContext(), "baggy.slowPath",
                                                      baggyBlock->getParent(), orig);
       IRBuilder<> slowPathBuilder(slowPathBlock);
-      Value *slowPathBr, *slowPathPtr;
+      Value *slowPathBr, *slowPathPtr, *bufcast, *pcast, *retptr;
 
-      slowPathPtr = slowPathBuilder.Insert(Constant::getNullValue(i->getType()));
+      bufcast = slowPathBuilder.CreatePointerCast(base, Type::getInt8PtrTy(baggyBlock->getContext()));
+      pcast = slowPathBuilder.CreatePointerCast(i, Type::getInt8PtrTy(baggyBlock->getContext()));
+      retptr = slowPathBuilder.CreateCall2(slowPathFunc, bufcast, pcast);
+      slowPathPtr = slowPathBuilder.CreatePointerCast(retptr, i->getType());
       slowPathBr = slowPathBuilder.CreateBr(orig);
 
       // Branch to slowpath if necessary
@@ -77,7 +80,17 @@ namespace {
 
     virtual bool doInitialization(Module &M) {
       sizeTable = M.getOrInsertGlobal("baggy_size_table", Type::getInt8PtrTy(getGlobalContext()));
-      //slowPathFunc = M.getFunction("baggy_slowpath");
+      slowPathFunc = M.getFunction("baggy_slowpath");
+      if (!slowPathFunc) {
+        std::vector<Type *> FuncTy_2_args;
+        FuncTy_2_args.push_back(Type::getInt8PtrTy(getGlobalContext()));
+        FuncTy_2_args.push_back(Type::getInt8PtrTy(getGlobalContext()));
+
+        FunctionType *FuncTy_bsp = FunctionType::get(Type::getInt8PtrTy(getGlobalContext()),
+                                                     FuncTy_2_args, false);
+
+        slowPathFunc = M.getOrInsertFunction("baggy_slowpath", FuncTy_bsp);
+      }
     }
 
     virtual bool runOnFunction(Function &F) {
