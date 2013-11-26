@@ -11,6 +11,7 @@
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 using namespace llvm;
 
@@ -21,7 +22,7 @@ namespace {
     GlobalVariable *sizeTable;
     Function *slowPath;
 
-    BasicBlock *createBaggyBlock(BasicBlock *orig, GetElementPtrInst *i) {
+    BasicBlock *createBaggyBlock(BasicBlock *orig, GetElementPtrInst *i, PHINode *phi) {
       BasicBlock *baggyBlock = BasicBlock::Create(orig->getContext(), "baggy.check",
                                                   orig->getParent(), orig);
       IRBuilder<> builder(baggyBlock);
@@ -53,8 +54,9 @@ namespace {
       BasicBlock *slowPathBlock = BasicBlock::Create(baggyBlock->getContext(), "baggy.slowPath",
                                                      baggyBlock->getParent(), orig);
       IRBuilder<> slowPathBuilder(slowPathBlock);
-      Value *slowPathBr;
+      Value *slowPathBr, *slowPathPtr;
 
+      slowPathPtr = slowPathBuilder.Insert(Constant::getNullValue(i->getType()));
       slowPathBr = slowPathBuilder.CreateBr(orig);
 
       // Branch to slowpath if necessary
@@ -64,6 +66,10 @@ namespace {
       baggyCheck = builder.CreateICmpEQ(result,ConstantInt::get(IntegerType::get(baggyBlock->getContext(), 32), 0));
       branchWeights = weightBuilder.createBranchWeights(99, 1);
       baggyBr = builder.CreateCondBr(baggyCheck, orig, slowPathBlock, branchWeights);
+
+      // Add both branches to phi node
+      phi->addIncoming(i, baggyBlock);
+      phi->addIncoming(slowPathPtr, slowPathBlock);
 
       return baggyBlock;
     }
@@ -79,12 +85,16 @@ namespace {
           if (isa<GetElementPtrInst>(*i)) {
             BasicBlock *after = block->splitBasicBlock(i, "baggy.split");
             BasicBlock *baggy;
+            PHINode *phi;
+            GetElementPtrInst *inst = cast<GetElementPtrInst>(i->clone());
 
             // Remove the getelementptrinst from the old block
-            i->removeFromParent();
+            // i->removeFromParent();
+            phi = PHINode::Create(i->getType(), 2);
+            ReplaceInstWithInst(i->getParent()->getInstList(), i, phi);
 
             // Create the instrumentation block
-            baggy = createBaggyBlock(after, &cast<GetElementPtrInst>(*i));
+            baggy = createBaggyBlock(after, inst, phi);
 
             // Have control flow through the instrumentation block
             TerminatorInst *term = block->getTerminator();
