@@ -24,7 +24,7 @@ struct list_node_t {
 typedef struct list_node_t list_node_t;
 
 static inline unsigned int get_slot_id(char*);
-static inline void table_mark_free(char*, unsigned int);
+static inline void table_mark(char*, unsigned int, unsigned char);
 static inline unsigned char get_slot_metadata(int);
 static inline void set_slot_metadata(unsigned int, unsigned char);
 static inline unsigned char form_metadata(unsigned char, unsigned char);
