@@ -10,6 +10,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Type.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
@@ -19,23 +20,23 @@ namespace {
   struct BaggyBoundsPointers : public FunctionPass {
     static char ID;
     BaggyBoundsPointers() : FunctionPass(ID) {}
-    GlobalVariable *sizeTable;
-    Function *slowPath;
+    Constant *sizeTable;
+    Function *slowPathFunc;
 
     BasicBlock *createBaggyBlock(BasicBlock *orig, GetElementPtrInst *i, PHINode *phi) {
       BasicBlock *baggyBlock = BasicBlock::Create(orig->getContext(), "baggy.check",
                                                   orig->getParent(), orig);
       IRBuilder<> builder(baggyBlock);
-      Value *tablestart = ConstantInt::get(IntegerType::get(baggyBlock->getContext(), 32), 0x78000000);
-      Value *base, *baseint, *tableoffset, *tableaddr, *hack, *inst, *sizeint, *tmpsize;
-      LoadInst *size;
+      Value *base, *baseint, *tableoffset, *tableaddr, *inst, *sizeint, *tmpsize, *sizeTableAddr;
+      LoadInst *size, *sizeTablePtr;
 
       // Baggy lookup
-      base = builder.CreateConstInBoundsGEP1_32(i->getOperand(0), 0);
+      base = builder.CreateConstInBoundsGEP1_32(i->getOperand(0), 0, "baggy.base");
       baseint = builder.CreatePtrToInt(base, IntegerType::get(baggyBlock->getContext(), 32));
-      tableoffset = builder.CreateAShr(baseint, 4);
-      hack = builder.CreateIntToPtr(tablestart, Type::getInt8PtrTy(baggyBlock->getContext()));
-      tableaddr = builder.CreateInBoundsGEP(hack, tableoffset);
+      tableoffset = builder.CreateAShr(baseint, 4, "baggy.offset");
+      //sizeTableAddr = builder.CreateConstInBoundsGEP1_32(sizeTable, 0);
+      sizeTablePtr = builder.CreateLoad(sizeTable, "baggy.table");
+      tableaddr = builder.CreateInBoundsGEP(sizeTablePtr, tableoffset);
       size = builder.CreateLoad(tableaddr, "alloc.size");
       tmpsize = builder.CreateZExtOrBitCast(size, IntegerType::get(baggyBlock->getContext(), 32));
       sizeint = builder.CreateAnd(tmpsize, 0x1F);
@@ -48,7 +49,7 @@ namespace {
 
       instint = builder.CreatePtrToInt(i, IntegerType::get(baggyBlock->getContext(), 32));
       combine = builder.CreateXor(baseint, instint);
-      result = builder.CreateAShr(combine, sizeint);
+      result = builder.CreateAShr(combine, sizeint, "baggy.result");
 
       // Create the slowpath block
       BasicBlock *slowPathBlock = BasicBlock::Create(baggyBlock->getContext(), "baggy.slowPath",
@@ -75,7 +76,8 @@ namespace {
     }
 
     virtual bool doInitialization(Module &M) {
-      sizeTable = M.getGlobalVariable("baggy_size_table");
+      sizeTable = M.getOrInsertGlobal("baggy_size_table", Type::getInt8PtrTy(getGlobalContext()));
+      //slowPathFunc = M.getFunction("baggy_slowpath");
     }
 
     virtual bool runOnFunction(Function &F) {
