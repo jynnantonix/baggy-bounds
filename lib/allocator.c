@@ -23,14 +23,14 @@ struct list_node_t {
 };
 typedef struct list_node_t list_node_t;
 
-inline unsigned int get_slot_id(char*);
-inline void table_mark_free(char*, unsigned int);
-inline unsigned char get_slot_metadata(int);
-inline void set_slot_metadata(unsigned int, unsigned char);
-inline unsigned char form_metadata(unsigned char, unsigned char);
-inline unsigned char is_used(unsigned char);
-inline unsigned char get_logsize(unsigned char);
-inline unsigned int get_log2(unsigned int);
+static inline unsigned int get_slot_id(char*);
+static inline void table_mark_free(char*, unsigned int);
+static inline unsigned char get_slot_metadata(int);
+static inline void set_slot_metadata(unsigned int, unsigned char);
+static inline unsigned char form_metadata(unsigned char, unsigned char);
+static inline unsigned char is_used(unsigned char);
+static inline unsigned char get_logsize(unsigned char);
+static inline unsigned int get_log2(unsigned int);
 
 void* buddy_malloc(size_t);
 void* buddy_realloc(void*, size_t);
@@ -42,11 +42,11 @@ unsigned int heap_size;  // the size of the heap in bytes
 list_node_t *dummy_first[NUM_BINS];
 list_node_t *dummy_last[NUM_BINS];
 
-inline unsigned int list_empty(unsigned int bin_id) {
+static inline unsigned int list_empty(unsigned int bin_id) {
 	return dummy_first[bin_id]->next->is_dummy;
 }
 
-inline void list_append(list_node_t* ptr, unsigned int bin_id) {
+static inline void list_append(list_node_t* ptr, unsigned int bin_id) {
 	ptr->is_dummy = 0;
 	ptr->prev = dummy_first[bin_id];
 	ptr->next = dummy_first[bin_id]->next;
@@ -54,19 +54,19 @@ inline void list_append(list_node_t* ptr, unsigned int bin_id) {
 	dummy_first[bin_id]->next = ptr;
 }
 
-inline void list_remove(list_node_t* ptr) {
+static inline void list_remove(list_node_t* ptr) {
 	list_node_t* prev = ptr->prev;
 	list_node_t* next = ptr->next;
 	ptr->next->prev = prev;
 	prev->next = next;
 }
 
-inline unsigned int get_slot_id(char* ptr) {
+static inline unsigned int get_slot_id(char* ptr) {
 	return (((unsigned int)ptr) - ((unsigned int)heap_start)) / SLOT_SIZE;
 }
 
 // requires size to be a power of two
-inline void table_mark(char* ptr, unsigned int size, unsigned char used) {
+static inline void table_mark(char* ptr, unsigned int size, unsigned char used) {
 	assert((size & (size - 1)) == 0);
 	unsigned int log2_size = get_log2(size);
 	unsigned int slot_id = get_slot_id(ptr);
@@ -82,29 +82,29 @@ inline void table_mark(char* ptr, unsigned int size, unsigned char used) {
 	assert(slot_id - first_slot_id == size / SLOT_SIZE);
 }
 
-inline unsigned char get_slot_metadata(int slot_id) {
+static inline unsigned char get_slot_metadata(int slot_id) {
 	return (unsigned char)baggy_size_table[slot_id];
 }
 
-inline void set_slot_metadata(unsigned int slot_id, unsigned char value) {
+static inline void set_slot_metadata(unsigned int slot_id, unsigned char value) {
 	baggy_size_table[slot_id] = value;
 }
 
-inline unsigned char form_metadata(unsigned char logsize, unsigned char is_used) {
+static inline unsigned char form_metadata(unsigned char logsize, unsigned char is_used) {
 	return (logsize << 1) | is_used;
 }
 
-inline unsigned char is_used(unsigned char metadata) {
+static inline unsigned char is_used(unsigned char metadata) {
 	return metadata & 1;
 }
 
-inline unsigned char get_logsize(unsigned char metadata) {
+static inline unsigned char get_logsize(unsigned char metadata) {
 	return metadata >> 1;
 }
 
 // returns smallest x such that 2^x >= size
 // requires size > 0
-inline unsigned int get_log2(unsigned int size) {
+static inline unsigned int get_log2(unsigned int size) {
 	unsigned char res = 0;
 	size--;
 	while (size > 0) {
