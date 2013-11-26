@@ -91,15 +91,15 @@ static inline void set_slot_metadata(unsigned int slot_id, unsigned char value) 
 }
 
 static inline unsigned char form_metadata(unsigned char logsize, unsigned char is_used) {
-	return (logsize << 1) | is_used;
+	return logsize | (is_used << 7);
 }
 
 static inline unsigned char is_used(unsigned char metadata) {
-	return metadata & 1;
+	return (metadata & 128) >> 7;
 }
 
 static inline unsigned char get_logsize(unsigned char metadata) {
-	return metadata >> 1;
+	return metadata;
 }
 
 // returns smallest x such that 2^x >= size
