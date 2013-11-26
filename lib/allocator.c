@@ -99,7 +99,7 @@ static inline unsigned char is_used(unsigned char metadata) {
 }
 
 static inline unsigned char get_logsize(unsigned char metadata) {
-	return metadata;
+	return metadata & 127;
 }
 
 // returns smallest x such that 2^x >= size
