@@ -340,10 +340,12 @@ static inline char* increase_heap_size_and_get_ptr(unsigned int size_to_allocate
 		while ((heap_size & (1 << bin_id)) == 0) {
 			bin_id++;
 		}
-		// TODO(aanastasov): consider the case when sbrk fails
 		size_allocated = 1 << bin_id;
 		*_bin_id = bin_id;
 		ptr = (char*)sbrk(size_allocated);
+		if (ptr < 0) { // sbrk failed
+			break;
+		}
 		if (size_allocated >= SLOT_SIZE) {
 			table_mark(ptr, size_allocated, FREE);
 			list_append((list_node_t*)ptr, bin_id);
@@ -380,6 +382,9 @@ void* buddy_malloc(size_t size) {
 	} else {
 		// try increasing the size of the heap until can allocate the required block
 		ptr = (void*)increase_heap_size_and_get_ptr(size_to_allocate, &bin_id);
+		if (ptr < 0) {
+			return NULL;
+		}
 	}
 
 	assert(ptr != NULL);
@@ -403,8 +408,6 @@ void* buddy_malloc(size_t size) {
 }
 
 void* buddy_realloc(void* ptr, size_t size) {
-	// TODO(aanastasov): Add optimization to realloc if the new block is shortened,
-	// and remove copying data around
 	void* newptr;
 	size_t copy_size;
 	
