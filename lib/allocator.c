@@ -116,9 +116,9 @@ static inline unsigned int get_log2(unsigned int size) {
 
 void test_lists() {
 	assert(list_empty(0) == 1);
-	list_node_t* A = (list_node_t*)sbrk(sizeof(list_node_t));
-	list_node_t* B = (list_node_t*)sbrk(sizeof(list_node_t));
-	list_node_t* C = (list_node_t*)sbrk(sizeof(list_node_t));
+	list_node_t* A = (list_node_t*)buddy_malloc(sizeof(list_node_t));
+	list_node_t* B = (list_node_t*)buddy_malloc(sizeof(list_node_t));
+	list_node_t* C = (list_node_t*)buddy_malloc(sizeof(list_node_t));
 	list_append(A, 0);
 	list_append(C, 0);
 	list_append(B, 0);
@@ -138,7 +138,7 @@ void test_lists() {
 	assert(dummy_last[0]->prev == A);
 	assert(dummy_last[0]->prev->prev == B);
 	assert(dummy_last[0]->prev->prev->prev == dummy_first[0]);
-	list_node_t* D = (list_node_t*)sbrk(sizeof(list_node_t));
+	list_node_t* D = (list_node_t*)buddy_malloc(sizeof(list_node_t));
 	list_append(D, 0);
 	assert(dummy_first[0]->next == D);
 	assert(dummy_first[0]->next->next == B);
@@ -282,29 +282,32 @@ void buddy_allocator_init() {
 		set_slot_metadata(slot_id, form_metadata(get_log2(SLOT_SIZE), USED));
 		slot_id++;
 	}
+}
 
-	// TODO(aanastasov): Move the following code in the malloc function.
-
-	// increase the size of the heap to an exact power of 2
-	while ((heap_size & (heap_size - 1)) != 0) {
-		bin_id = 0;
-		// find the lowest bit of heap size, and increase the heap by that amount
+static inline char* increase_heap_size_and_get_ptr(unsigned int size_to_allocate,
+												   unsigned int* _bin_id) {
+	unsigned int size_allocated;
+	char* ptr;
+	do {
+		unsigned int bin_id = 0;
 		while ((heap_size & (1 << bin_id)) == 0) {
 			bin_id++;
 		}
-		unsigned int size = 1 << bin_id;
-		char* ptr = (char*)sbrk(size);
-		if (size >= SLOT_SIZE) {
-			table_mark(ptr, size, FREE);
+		// TODO(aanastasov): consider the case when sbrk fails
+		size_allocated = 1 << bin_id;
+		*_bin_id = bin_id;
+		ptr = (char*)sbrk(size_allocated);
+		if (size_allocated >= SLOT_SIZE) {
+			table_mark(ptr, size_allocated, FREE);
 			list_append((list_node_t*)ptr, bin_id);
 		} else {
-			// too small, throw away
+			// too small (can't fit one SLOT_SIZE entry), throw away
 		}
-		heap_end += size;
-		heap_size += size;
+		heap_end += size_allocated;
+		heap_size += size_allocated;
 		assert(heap_end == (char*)sbrk(0));
-	}
-	assert((heap_size & (heap_size - 1)) == 0);
+	} while (size_to_allocate > size_allocated);
+	return ptr;
 }
 
 void* buddy_malloc(size_t size) {
@@ -327,23 +330,9 @@ void* buddy_malloc(size_t size) {
 	if (bin_id < NUM_BINS) {
 		// grab the first element from the list
 		ptr = (void*)dummy_first[bin_id]->next;
-	} else { // bin_id >= NUM_BINS
-		// try doubling the heap until allocate the required block
-		unsigned int size_allocated;
-		do {
-			unsigned int heapsize_log2 = get_log2(heap_size);
-			// the size of the heap must be an exact power of two
-			assert(get_log2(heap_size + 1) != heapsize_log2);
-			size_allocated = heap_size;
-			bin_id = heapsize_log2;
-			// TODO(aanastasov): Consider the case of not being able
-			// to allocate memory, and return NULL.
-			ptr = (char*)sbrk(heap_size);
-			table_mark(ptr, heap_size, FREE);
-			list_append((list_node_t*)ptr, bin_id);
-			heap_end += heap_size;
-			heap_size *= 2;
-		} while (size_to_allocate > size_allocated);
+	} else {
+		// try increasing the size of the heap until can allocate the required block
+		ptr = (void*)increase_heap_size_and_get_ptr(size_to_allocate, &bin_id);
 	}
 
 	assert(ptr != NULL);
