@@ -179,6 +179,7 @@ void test_malloc() {
 	}
 	printf("basic malloc tests passed..\n");
 	fflush(stdout);
+	buddy_free(arr);
 
 	int* block[128];
 	for (i = 0; i < 128; ++i) {
@@ -194,6 +195,9 @@ void test_malloc() {
 	}
 	printf("multiple allocations are powers of 2 malloc test passed..\n");
 	fflush(stdout);
+	for (i = 0; i < 128; ++i) {
+		buddy_free(block[i]);
+	}
 
 	int* segment[24];
 	for (i = 0; i < 24; ++i) {
@@ -207,6 +211,9 @@ void test_malloc() {
 			assert(segment[i][j] == j * j + 2 * j - 10);
 	printf("allocate big blocks malloc test passed..\n");
 	fflush(stdout);
+	for (i = 0; i < 24; ++i) {
+		buddy_free(segment[i]);
+	}
 }
 
 void test_free() {
@@ -230,7 +237,46 @@ void test_free() {
 	// check that we are actually reusing the block, and not increasing
 	// the size of the heap
 	assert(heap_size == old_heap_size);
+	buddy_free(arr);
 	printf("simple buddy_free test passed..\n");
+	fflush(stdout);
+}
+
+void test_coalesce() {
+	int* a[1 << 6];
+	int i, j;
+	for (i = 0; i < (1 << 6); ++i) {
+		a[i] = (int*)buddy_malloc(sizeof(int) * (1 << 15));
+		for (j = 0; j < (1 << 15); ++j) {
+			a[i][j] = j * j + j * 12626 - 2212;
+		}
+	}
+	unsigned int bin_id;
+	unsigned int free_above_before = 0;
+	for (bin_id = 17 + 1; bin_id <= 32; ++bin_id) {
+		list_node_t* at = dummy_first[bin_id];
+		while (at->next != dummy_last[bin_id]) {
+			free_above_before += (unsigned int)(1 << bin_id);
+			at = at->next;
+		}
+	}
+	for (i = 1; i < (1 << 6); ++i)
+		buddy_free(a[i]);
+	for (j = 0; j < (1 << 15); ++j) {
+		assert(a[0][j] == j * j + j * 12626 - 2212);
+	}
+	buddy_free(a[0]);
+	unsigned int free_above_after = 0;
+	for (bin_id = 17 + 2; bin_id <= 32; ++bin_id) {
+		list_node_t* at = dummy_first[bin_id];
+		while (at->next != dummy_last[bin_id]) {
+			free_above_after += (unsigned int)(1 << bin_id);
+			at = at->next;
+		}
+	}
+	printf("before assert!\n");
+	assert(free_above_before < free_above_after);
+	printf("coalesce test passed..\n");
 	fflush(stdout);
 }
 
@@ -247,6 +293,7 @@ void test_realloc() {
 	}
 	printf("simple buddy_realloc test passed..\n");
 	fflush(stdout);
+	buddy_free(arr);
 }
 
 void buddy_allocator_init() {
@@ -400,9 +447,9 @@ void buddy_free(void* ptr) {
 			list_remove((list_node_t*)buddy_ptr);
 			bin_id++;
 			size *= 2;
+			table_mark(newptr, size, FREE);
 			list_append((list_node_t*)newptr, bin_id);
 			// TODO(aanastasov): do we need to update all slot entries for this ptr?
-			table_mark(newptr, size, FREE);
 			ptr = newptr;
 		} else {
 			try_coalescing = 0;
