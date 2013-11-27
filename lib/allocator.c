@@ -285,7 +285,7 @@ void buddy_allocator_init() {
 }
 
 static inline char* increase_heap_size_and_get_ptr(unsigned int size_to_allocate,
-												   unsigned int* _bin_id) {
+		unsigned int* _bin_id) {
 	unsigned int size_allocated;
 	char* ptr;
 	do {
@@ -314,7 +314,7 @@ void* buddy_malloc(size_t size) {
 	if (size == 0) {
 		return NULL;
 	}
-	// allocate 2^x, where x >= size such that x is smallest
+	// allocate the smallest sufficient power of two block >= size
 	unsigned int size_to_allocate = 1 << ((unsigned int)get_log2(size));
 	if (size_to_allocate < SLOT_SIZE) {
 		size_to_allocate = SLOT_SIZE;
@@ -356,7 +356,8 @@ void* buddy_malloc(size_t size) {
 }
 
 void* buddy_realloc(void* ptr, size_t size) {
-	// TODO(aanastasov): implement realloc by using malloc and free
+	// TODO(aanastasov): Add optimization to realloc if the new block is shortened,
+	// and remove copying data around
 	void* newptr;
 	size_t copy_size;
 	
@@ -376,9 +377,35 @@ void* buddy_realloc(void* ptr, size_t size) {
 }
 
 void buddy_free(void* ptr) {
-	// TODO(aanastasov): implement coalescing
 	unsigned int size = 1 << get_logsize(get_slot_metadata(get_slot_id(ptr)));
 	unsigned int bin_id = get_log2(size);
 	table_mark(ptr, size, FREE);
 	list_append((list_node_t*)ptr, bin_id);
+
+	unsigned char try_coalescing = 1;
+	do {
+		unsigned int address = (unsigned int)ptr;
+		unsigned int logsize = get_logsize(get_slot_metadata(get_slot_id(ptr)));
+		unsigned int buddy_address = ((address >> logsize) ^ 1) << logsize;
+		char* buddy_ptr = (char*)buddy_address;
+		if (get_logsize(get_slot_metadata(get_slot_id(buddy_ptr))) == logsize &&
+				!is_used(get_slot_metadata(get_slot_id(buddy_ptr)))) {
+			char* newptr;
+			if (address < buddy_address) {
+				newptr = (char*)address;
+			} else {
+				newptr = (char*)buddy_address;
+			}
+			list_remove((list_node_t*)ptr);
+			list_remove((list_node_t*)buddy_ptr);
+			bin_id++;
+			size *= 2;
+			list_append((list_node_t*)newptr, bin_id);
+			// TODO(aanastasov): do we need to update all slot entries for this ptr?
+			table_mark(newptr, size, FREE);
+			ptr = newptr;
+		} else {
+			try_coalescing = 0;
+		}
+	} while (try_coalescing);
 }
