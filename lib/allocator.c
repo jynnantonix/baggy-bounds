@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include "list.h"
 #include "address_constants.h"
 
 #define NUM_BINS 32
@@ -15,13 +16,6 @@
 #define realloc(...) (USE_BUDDY_REALLOC)
 
 extern unsigned char* baggy_size_table;
-
-struct list_node_t {
-	struct list_node_t* prev;
-	struct list_node_t* next;
-	unsigned int is_dummy;
-};
-typedef struct list_node_t list_node_t;
 
 static inline unsigned int get_slot_id(char*);
 static inline void table_mark(char*, unsigned int, unsigned char);
@@ -39,31 +33,8 @@ void buddy_free(void*);
 char* heap_start;
 char* heap_end;
 unsigned int heap_size;  // the size of the heap in bytes
-list_node_t *dummy_first[NUM_BINS];
-list_node_t *dummy_last[NUM_BINS];
-
-static inline unsigned int list_empty(unsigned int bin_id) {
-	return dummy_first[bin_id]->next->is_dummy;
-}
-
-static inline void list_append(list_node_t* ptr, unsigned int bin_id) {
-	ptr->is_dummy = 0;
-	ptr->prev = dummy_first[bin_id];
-	ptr->next = dummy_first[bin_id]->next;
-	dummy_first[bin_id]->next->prev = ptr;
-	dummy_first[bin_id]->next = ptr;
-}
-
-static inline void list_remove(list_node_t* ptr) {
-	list_node_t* prev = ptr->prev;
-	list_node_t* next = ptr->next;
-	ptr->next->prev = prev;
-	prev->next = next;
-}
-
-static inline unsigned int get_slot_id(char* ptr) {
-	return (((unsigned int)ptr) - ((unsigned int)heap_start)) / SLOT_SIZE;
-}
+extern list_node_t *dummy_first[NUM_BINS];
+extern list_node_t *dummy_last[NUM_BINS];
 
 // requires size to be a power of two
 static inline void table_mark(char* ptr, unsigned int size, unsigned char used) {
@@ -80,6 +51,10 @@ static inline void table_mark(char* ptr, unsigned int size, unsigned char used) 
 		slot_id++;
 	}
 	assert(slot_id - first_slot_id == size / SLOT_SIZE);
+}
+
+static inline unsigned int get_slot_id(char* ptr) {
+	return (((unsigned int)ptr) - ((unsigned int)heap_start)) / SLOT_SIZE;
 }
 
 static inline unsigned char get_slot_metadata(int slot_id) {
@@ -112,188 +87,6 @@ static inline unsigned int get_log2(unsigned int size) {
 		++res;
 	}
 	return res;
-}
-
-void test_lists() {
-	assert(list_empty(0) == 1);
-	list_node_t* A = (list_node_t*)buddy_malloc(sizeof(list_node_t));
-	list_node_t* B = (list_node_t*)buddy_malloc(sizeof(list_node_t));
-	list_node_t* C = (list_node_t*)buddy_malloc(sizeof(list_node_t));
-	list_append(A, 0);
-	list_append(C, 0);
-	list_append(B, 0);
-	assert(dummy_first[0]->next == B);
-	assert(dummy_first[0]->next->next == C);
-	assert(dummy_first[0]->next->next->next == A);
-	assert(dummy_first[0]->next->next->next->next = dummy_last[0]);
-	assert(dummy_last[0]->prev == A);
-	assert(dummy_last[0]->prev->prev == C);
-	assert(dummy_last[0]->prev->prev->prev == B);
-	assert(dummy_last[0]->prev->prev->prev->prev == dummy_first[0]);
-	assert(list_empty(0) == 0);
-	list_remove(C);
-	assert(dummy_first[0]->next == B);
-	assert(dummy_first[0]->next->next == A);
-	assert(dummy_first[0]->next->next->next == dummy_last[0]);
-	assert(dummy_last[0]->prev == A);
-	assert(dummy_last[0]->prev->prev == B);
-	assert(dummy_last[0]->prev->prev->prev == dummy_first[0]);
-	list_node_t* D = (list_node_t*)buddy_malloc(sizeof(list_node_t));
-	list_append(D, 0);
-	assert(dummy_first[0]->next == D);
-	assert(dummy_first[0]->next->next == B);
-	assert(dummy_first[0]->next->next->next == A);
-	assert(dummy_first[0]->next->next->next->next == dummy_last[0]);
-	list_remove(D); 
-	list_remove(A);
-	assert(list_empty(0) == 0);
-	assert(dummy_first[0]->next == B);
-	assert(dummy_first[0]->next->next == dummy_last[0]);
-	assert(dummy_last[0]->prev == B);
-	assert(dummy_last[0]->prev->prev == dummy_first[0]);
-	assert(dummy_last[0]->prev->is_dummy == 0);
-	list_remove(B);
-	assert(dummy_first[0]->next == dummy_last[0]);
-	assert(dummy_last[0]->prev == dummy_first[0]);
-	assert(list_empty(0) == 1);
-	printf("all list tests passed..\n");
-	fflush(stdout);
-}
-
-void test_malloc() {
-	int* a = (int*)buddy_malloc(sizeof(int));
-	int* b = (int*)buddy_malloc(sizeof(int));
-	*a = 5;
-	*b = 7;
-	*b = *a - 100;
-	assert(*b == -95);
-	assert(*a == 5);
-
-	int* arr = (int*)buddy_malloc(sizeof(int) * 100);
-	int i, j;
-	for (i = 0; i < 128; ++i) {
-		arr[i] = i;
-	}
-	for (i = 127; i >= 0; --i) {
-		assert(arr[i] == i);
-	}
-	printf("basic malloc tests passed..\n");
-	fflush(stdout);
-	buddy_free(arr);
-
-	int* block[128];
-	for (i = 0; i < 128; ++i) {
-		block[i] = (int*)buddy_malloc(sizeof(int) * 100);
-		for (j = 0; j < 128; ++j) {
-			block[i][j] = j * j + 2 * j - 10;
-		}
-	}
-	for (i = 0; i < 128; ++i) {
-		for (j = 0; j < 128; ++j) {
-			assert(block[i][j] == j * j + 2 * j - 10);
-		}
-	}
-	printf("multiple allocations are powers of 2 malloc test passed..\n");
-	fflush(stdout);
-	for (i = 0; i < 128; ++i) {
-		buddy_free(block[i]);
-	}
-
-	int* segment[24];
-	for (i = 0; i < 24; ++i) {
-		segment[i] = (int*)buddy_malloc(sizeof(int) * (1 << i));
-		for (j = 0; j < (1 << i); ++j) {
-			segment[i][j] = j * j + 2 * j - 10;
-		}
-	}
-	for (i = 0; i < 24; ++i)
-		for (j = 0; j < (1 << i); ++j)
-			assert(segment[i][j] == j * j + 2 * j - 10);
-	printf("allocate big blocks malloc test passed..\n");
-	fflush(stdout);
-	for (i = 0; i < 24; ++i) {
-		buddy_free(segment[i]);
-	}
-}
-
-void test_free() {
-	int *arr = (int*)buddy_malloc(sizeof(int) * (1 << 23));
-	int i;
-	for (i = 0; i < (1 << 23); ++i) {
-		arr[i] = i * i + 2 * i - 30;
-	}
-	for (i = 0; i < (1 << 23); ++i) {
-		assert(arr[i] == i * i + 2 * i - 30);
-	}
-	unsigned int old_heap_size = heap_size;
-	buddy_free(arr);
-	arr = (int*)buddy_malloc(sizeof(int) * (1 << 23));
-	for (i = 0; i < (1 << 23); ++i) {
-		arr[i] = i * i + 3 * i - 50;
-	}
-	for (i = 0; i < (1 << 23); ++i) {
-		assert(arr[i] == i * i + 3 * i - 50);
-	}
-	// check that we are actually reusing the block, and not increasing
-	// the size of the heap
-	assert(heap_size == old_heap_size);
-	buddy_free(arr);
-	printf("simple buddy_free test passed..\n");
-	fflush(stdout);
-}
-
-void test_coalesce() {
-	int* a[1 << 6];
-	int i, j;
-	for (i = 0; i < (1 << 6); ++i) {
-		a[i] = (int*)buddy_malloc(sizeof(int) * (1 << 15));
-		for (j = 0; j < (1 << 15); ++j) {
-			a[i][j] = j * j + j * 12626 - 2212;
-		}
-	}
-	unsigned int bin_id;
-	unsigned int free_above_before = 0;
-	for (bin_id = 17 + 1; bin_id <= 32; ++bin_id) {
-		list_node_t* at = dummy_first[bin_id];
-		while (at->next != dummy_last[bin_id]) {
-			free_above_before += (unsigned int)(1 << bin_id);
-			at = at->next;
-		}
-	}
-	for (i = 1; i < (1 << 6); ++i)
-		buddy_free(a[i]);
-	for (j = 0; j < (1 << 15); ++j) {
-		assert(a[0][j] == j * j + j * 12626 - 2212);
-	}
-	buddy_free(a[0]);
-	unsigned int free_above_after = 0;
-	for (bin_id = 17 + 2; bin_id <= 32; ++bin_id) {
-		list_node_t* at = dummy_first[bin_id];
-		while (at->next != dummy_last[bin_id]) {
-			free_above_after += (unsigned int)(1 << bin_id);
-			at = at->next;
-		}
-	}
-	printf("before assert!\n");
-	assert(free_above_before < free_above_after);
-	printf("coalesce test passed..\n");
-	fflush(stdout);
-}
-
-void test_realloc() {
-	int *arr = (int*)buddy_malloc(sizeof(int) * 1000);
-	int i;
-	for (i = 0; i < 1000; ++i) {
-		arr[i] = i * i * i - 3 * i + 124;
-	}
-	arr = (int*)buddy_realloc(arr, sizeof(int) * 2000);
-	assert(arr != NULL);
-	for (i = 0; i < 1000; ++i) {
-		assert(arr[i] == i * i * i - 3 * i + 124);
-	}
-	printf("simple buddy_realloc test passed..\n");
-	fflush(stdout);
-	buddy_free(arr);
 }
 
 void buddy_allocator_init() {
