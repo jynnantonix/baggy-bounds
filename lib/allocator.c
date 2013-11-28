@@ -24,7 +24,7 @@ struct list_node_t {
 typedef struct list_node_t list_node_t;
 
 static inline unsigned int get_slot_id(char*);
-static inline void table_mark_free(char*, unsigned int);
+static inline void table_mark(char*, unsigned int, unsigned char);
 static inline unsigned char get_slot_metadata(int);
 static inline void set_slot_metadata(unsigned int, unsigned char);
 static inline unsigned char form_metadata(unsigned char, unsigned char);
@@ -91,38 +91,26 @@ static inline void set_slot_metadata(unsigned int slot_id, unsigned char value) 
 }
 
 static inline unsigned char form_metadata(unsigned char logsize, unsigned char is_used) {
-	return (logsize << 1) | is_used;
+	return logsize | (is_used << 7);
 }
 
 static inline unsigned char is_used(unsigned char metadata) {
-	return metadata & 1;
+	return (metadata & 128) >> 7;
 }
 
 static inline unsigned char get_logsize(unsigned char metadata) {
-	return metadata >> 1;
+	return metadata & 127;
 }
 
 // returns smallest x such that 2^x >= size
 // requires size > 0
 static inline unsigned int get_log2(unsigned int size) {
 	unsigned char res = 0;
-
-	if ((size & (size-1)) == 0) {
-		/* size is already a power of 2 */
-		res = size;
-	} else {
-		/* smear the highest set bit across all the lower bits */
-		size |= (size >>  1);
-		size |= (size >>  2);
-		size |= (size >>  4);
-		size |= (size >>  8);
-		size |= (size >> 16);
-
-		/* flip all the bits and XOR to get the power of 2 we need */
-		size = ~size;
-		res = size ^ (size << 1);
+	size--;
+	while (size > 0) {
+		size >>= 1;
+		++res;
 	}
-
 	return res;
 }
 
