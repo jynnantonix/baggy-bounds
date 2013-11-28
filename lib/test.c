@@ -11,5 +11,6 @@ int main() {
 	test_free();
 	test_realloc();
 	test_malloc();
+	printf("hi\n");
 	return 0;
 }

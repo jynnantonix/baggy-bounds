@@ -45,16 +45,6 @@ void setup_stack() {
 	move_stack();
 
 	munmap((void*) 0x80000000, 1 << 30);
-
-	/*
-	void* ebpval;
-	asm("movl %%ebp, %0;" : "=r"(ebpval));
-	printf("%p\n", ebpval);
-	for (int i = 0; i < 10; i++) {
-		ebpval = *((void**) ebpval);
-		printf("%p\n", ebpval);
-	}
-	*/
 }
 
 void baggy_init() {
