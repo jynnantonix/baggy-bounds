@@ -32,7 +32,7 @@ void *baggy_slowpath(void *buf, void *p)
 		/* get start of allocation and calculate diff */
 		orig = (orig >> size) << size;
 		diff = newptr - orig;
-		if (diff < alloc_size) {
+		if (0 <= diff && diff < alloc_size) {
 			ret = (void *)newptr;
 		} else if (diff < (alloc_size + (SLOT_SIZE>>1)) && newptr > (orig - (SLOT_SIZE>>1))) {
 			ret = (void *)(newptr | 0x80000000);
