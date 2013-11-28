@@ -1,7 +1,7 @@
 all : build/baggylib.a
 
 CC = gcc
-CFLAGS = -std=gnu99
+CFLAGS = -std=gnu99 -g
 ARFLAGS = -ru
 
 C_FILES = allocator baggy_init baggy_slowpath pointer util
