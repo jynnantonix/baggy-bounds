@@ -1,14 +1,14 @@
 #include <cstdio>
 
-int* inc1(int* a) {
+int* __attribute__ ((noinline)) inc1(int* a) {
 	return a+1;
 }
 
-int* dec1(int* a) {
+int* __attribute__ ((noinline)) dec1(int* a) {
 	return a-1;
 }
 
-void hey(int* a) {
+void __attribute__ ((noinline)) hey(int* a) {
 	int* b = dec1(a); // a - 1
 	int* c = inc1(b); // a
 
@@ -21,12 +21,17 @@ void hey(int* a) {
 	printf("%p\n", d);
 	printf("%p\n", e);
 
-	int* f = inc1(d);
+	int* f = inc1(d); // a + 9
 	printf("%p\n", f);
+
+//	int* g = inc1(f); // a + 10
+	// should segfault
+//	printf("%p\n", f);
 }
 
 int main() {
 	int a[8];
+	printf("a = %p\n", a);
 	hey(a);
 	return 0;
 }

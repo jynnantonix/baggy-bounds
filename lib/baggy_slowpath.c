@@ -12,6 +12,8 @@ void *baggy_slowpath(void *buf, void *p)
 	intptr_t offset, alloc_size, diff, orig, newptr;
 	unsigned char size;
 
+	printf("Slowpath %p, %p\n", buf, p);
+
 	orig = (intptr_t)buf;
 	newptr = (intptr_t)p;
 	if ((orig & 0x80000000) != 0) {
@@ -37,7 +39,7 @@ void *baggy_slowpath(void *buf, void *p)
 		} else if (diff < (alloc_size + (SLOT_SIZE>>1)) && newptr > (orig - (SLOT_SIZE>>1))) {
 			ret = (void *)(newptr | 0x80000000);
 		} else {
-			printf("Segmentation fault\n");
+			printf("Baggy segmentation fault\n");
 			exit(EXIT_FAILURE);
 		}
 	}

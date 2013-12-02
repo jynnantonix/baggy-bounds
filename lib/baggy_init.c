@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "address_constants.h"
 
@@ -12,7 +15,7 @@ unsigned char* baggy_size_table;
 unsigned int page_size;
 void sigsegv_handler(int signal_number, siginfo_t* siginfo, void* context) {
 	unsigned int addr = (unsigned int)siginfo->si_addr;
-	if (addr >= TABLE_START && addr < TABLE_END) {
+	if (addr >= TABLE_START && addr < TABLE_MID) {
 		unsigned int addr_aligned = addr - (addr % page_size);
 		mmap((void*)addr_aligned, 1, PROT_READ | PROT_WRITE,
 			MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
@@ -34,6 +37,10 @@ void setup_table() {
 	act.sa_flags = SA_SIGINFO;
 
 	sigaction(SIGSEGV, &act, NULL);
+
+	int fd = open("/dev/zero", O_RDONLY); 
+	mmap((void*) TABLE_MID, TABLE_END - TABLE_MID, PROT_READ,
+		MAP_PRIVATE | MAP_FIXED, fd, 0);
 }
 
 void move_stack();
@@ -53,9 +60,12 @@ void baggy_init() {
 		is_initialized = true;
 
 		setup_table();
+		printf("[debug] Setup table\n");
 
 		setup_stack();
+		printf("[debug] Setup stack\n");
 		
 		buddy_allocator_init();
+		printf("[debug] Setup buddy allocator\n");
 	}
 }

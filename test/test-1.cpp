@@ -15,6 +15,7 @@ void hey(int* a) {
 }
 
 int main() {
+	printf("Starting...\n");
 	int a[4];
 	a[0] = 100;
 	a[1] = 101;
