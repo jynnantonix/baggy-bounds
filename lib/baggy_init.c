@@ -20,7 +20,7 @@ void sigsegv_handler(int signal_number, siginfo_t* siginfo, void* context) {
 		mmap((void*)addr_aligned, 1, PROT_READ | PROT_WRITE,
 			MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
 	} else {
-		printf("Segmentation fault\n");
+		printf("SIGSEGV handler: Segmentation fault (addr: %p)\n", (void*)addr);
 		exit(1);
 	}
 }

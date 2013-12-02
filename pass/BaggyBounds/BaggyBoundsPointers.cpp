@@ -33,7 +33,7 @@ namespace {
       // Baggy lookup
       base = builder.CreateConstInBoundsGEP1_32(i->getOperand(0), 0, "baggy.base");
       baseint = builder.CreatePtrToInt(base, IntegerType::get(baggyBlock->getContext(), 32));
-      tableoffset = builder.CreateAShr(baseint, 4, "baggy.offset");
+      tableoffset = builder.CreateLShr(baseint, 4, "baggy.offset");
       //sizeTableAddr = builder.CreateConstInBoundsGEP1_32(sizeTable, 0);
       sizeTablePtr = builder.CreateLoad(sizeTable, "baggy.table");
       tableaddr = builder.CreateInBoundsGEP(sizeTablePtr, tableoffset);

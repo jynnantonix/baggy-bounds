@@ -12,7 +12,7 @@ void *baggy_slowpath(void *buf, void *p)
 	intptr_t offset, alloc_size, diff, orig, newptr;
 	unsigned char size;
 
-	printf("Slowpath %p, %p\n", buf, p);
+	printf("[debug] Slowpath %p, %p\n", buf, p);
 
 	orig = (intptr_t)buf;
 	newptr = (intptr_t)p;
@@ -24,7 +24,7 @@ void *baggy_slowpath(void *buf, void *p)
 		} else {
 			orig += SLOT_SIZE; /* top half of slot */
 		}
-		ret = baggy_slowpath((void *)orig, (void *)newptr);
+		ret = baggy_slowpath((void *)orig, (void *)(newptr & 0x7fffffff));
 	} else {
 		/* get allocation size */
 		offset = orig >> 4;
@@ -43,6 +43,8 @@ void *baggy_slowpath(void *buf, void *p)
 			exit(EXIT_FAILURE);
 		}
 	}
+
+	printf("[debug] Slowpath %p, %p returning %p\n", buf, p, ret);
 
 	return ret;
 }
