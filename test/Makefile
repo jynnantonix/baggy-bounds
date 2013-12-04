@@ -1,5 +1,7 @@
 .PRECIOUS: %.bg.ll %.ll
 
+all: tests/test-1.out tests/test-2.out tests/test-3.out
+
 %.bc : %.cpp
 	clang++ -O2 -emit-llvm $< -c -o $@
 
@@ -18,9 +20,9 @@ CSUDIR = ../../glibc/build/csu
 	gcc $< ../lib/build/baggylib.a -o $@
 
 clean:
-	rm -rf *.ll
-	rm -rf *.bg.ll
-	rm -rf *.bc
-	rm -rf *.bgo
-	rm -rf *.o
-	rm -rf *.out
+	rm -rf tests/*.ll
+	rm -rf tests/*.bg.ll
+	rm -rf tests/*.bc
+	rm -rf tests/*.bgo
+	rm -rf tests/*.o
+	rm -rf tests/*.out

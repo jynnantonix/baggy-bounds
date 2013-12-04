@@ -12,8 +12,6 @@ void *baggy_slowpath(void *buf, void *p)
 	intptr_t offset, alloc_size, diff, orig, newptr;
 	unsigned char size;
 
-	printf("[debug] Slowpath %p, %p\n", buf, p);
-
 	orig = (intptr_t)buf;
 	newptr = (intptr_t)p;
 	if ((orig & 0x80000000) != 0) {
@@ -43,8 +41,6 @@ void *baggy_slowpath(void *buf, void *p)
 			exit(EXIT_FAILURE);
 		}
 	}
-
-	printf("[debug] Slowpath %p, %p returning %p\n", buf, p, ret);
 
 	return ret;
 }
