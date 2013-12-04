@@ -16,6 +16,8 @@ def passes():
     desired_out_lines = outfile_lines[:-1]
     desired_ret_code = int(outfile_lines[-1].strip())
 
+    if len(out_lines) != len(desired_out_lines):
+        return False
     if any(x != y and y != "?\n" for x, y in zip(out_lines, desired_out_lines)):
         return False
     if ret_code != desired_ret_code:

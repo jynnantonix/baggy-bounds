@@ -1,6 +1,6 @@
 .PRECIOUS: %.bg.ll %.ll
 
-all: tests/test-1.out tests/test-2.out tests/test-3.out
+all: tests/test-1.out tests/test-2.out tests/test-3.out tests/test-4.out
 
 %.bc : %.cpp
 	clang++ -O2 -emit-llvm $< -c -o $@

@@ -34,7 +34,7 @@ void *baggy_slowpath(void *buf, void *p)
 		diff = newptr - orig;
 		if (0 <= diff && diff < alloc_size) {
 			ret = (void *)newptr;
-		} else if (diff < (alloc_size + (SLOT_SIZE>>1)) && newptr > (orig - (SLOT_SIZE>>1))) {
+		} else if (diff < (alloc_size + (SLOT_SIZE>>1)) && newptr >= (orig - (SLOT_SIZE>>1))) {
 			ret = (void *)(newptr | 0x80000000);
 		} else {
 			printf("Baggy segmentation fault\n");
