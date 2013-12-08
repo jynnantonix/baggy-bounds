@@ -1,7 +1,5 @@
 #include <cstdio>
-extern "C" {
-	void* buddy_malloc (size_t size);
-}
+#include <cstdlib> 
 
 void hey(int* a) {
 	printf("%p\n", a);
@@ -18,7 +16,7 @@ void hey(int* a) {
 }
 
 int main() {
-	int* a = (int*) buddy_malloc(16);
+	int* a = (int*) malloc(16);
 	a[0] = 100;
 	a[1] = 101;
 	a[2] = 102;

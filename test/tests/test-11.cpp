@@ -1,7 +1,5 @@
 #include <cstdio>
-extern "C" {
-	void* buddy_malloc (size_t size);
-}
+#include <cstdlib>
 
 int* __attribute__ ((noinline)) inc1(int* a) {
 	return a+1;
@@ -33,7 +31,7 @@ void __attribute__ ((noinline)) hey(int* a) {
 }
 
 int main() {
-	int* a = (int *)buddy_malloc(32);
+	int* a = (int *)malloc(32);
 	hey(a);
 	return 0;
 }

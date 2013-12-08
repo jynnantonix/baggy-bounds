@@ -11,10 +11,6 @@
 #define FREE 0
 #define USED 1
 
-#define malloc(...) (USE_BUDDY_ALLOC)
-#define free(...) (USE_BUDDY_FREE)
-#define realloc(...) (USE_BUDDY_REALLOC)
-
 extern unsigned char* baggy_size_table;
 
 static inline unsigned int get_slot_id(char*);
@@ -26,9 +22,9 @@ static inline unsigned char is_used(unsigned char);
 static inline unsigned char get_logsize(unsigned char);
 static inline unsigned int get_log2(unsigned int);
 
-void* buddy_malloc(size_t);
-void* buddy_realloc(void*, size_t);
-void buddy_free(void*);
+void* malloc(size_t);
+void* realloc(void*, size_t);
+void free(void*);
 
 char* heap_start;
 char* heap_end;
@@ -152,7 +148,7 @@ static inline char* increase_heap_size_and_get_ptr(unsigned int size_to_allocate
 	return ptr;
 }
 
-void* buddy_malloc(size_t size) {
+void* malloc(size_t size) {
 	if (size == 0) {
 		return NULL;
 	}
@@ -200,11 +196,15 @@ void* buddy_malloc(size_t size) {
 	return (void*)ptr;
 }
 
-void* buddy_realloc(void* ptr, size_t size) {
+void* realloc(void* ptr, size_t size) {
 	void* newptr;
 	size_t copy_size;
+
+	if (ptr == NULL) {
+		return malloc(size);
+	}
 	
-	newptr = buddy_malloc(size);
+	newptr = malloc(size);
 	if (newptr == NULL) {
 		return NULL;
 	}
@@ -215,11 +215,14 @@ void* buddy_realloc(void* ptr, size_t size) {
 
 	memcpy(newptr, ptr, copy_size);
 
-	buddy_free(ptr);
+	free(ptr);
 	return newptr;
 }
 
-void buddy_free(void* ptr) {
+void free(void* ptr) {
+	if (ptr == NULL) {
+		return;
+	}
 	unsigned int size = 1 << get_logsize(get_slot_metadata(get_slot_id(ptr)));
 	unsigned int bin_id = get_log2(size);
 	table_mark(ptr, size, FREE);
