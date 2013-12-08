@@ -39,18 +39,38 @@ def main():
 
         if not inputs:
             res = test_input("tests/%s.bg.out" % prog, None, "outputs/%s.out" % prog, prog)
-            if isinstance(res, str):
-                print "Test %s: %sFAILED%s (%s)" % (prog, FAILCOLOR, ENDCOLOR, res)
+            if benchmark_mode:
+                res1 = test_input("tests/%s.bg.out" % prog, None, "outputs/%s.out" % prog, prog)
+                print_benchmark(prog, "", res, res1)
             else:
-                print "Test %s: %sPASSED%s" % (prog, OKCOLOR, ENDCOLOR)
+                print_test(prog, "", res)
         else:
             for inp in sorted(inputs):
                 suffix = os.path.basename(inp)[len(prog+'.in'):]
                 res = test_input("tests/%s.bg.out" % prog, inp, "outputs/%s.out%s" % (prog, suffix), prog)
-                if isinstance(res, str):
-                    print "Test %s: %sFAILED%s (%s)" % (prog, FAILCOLOR, ENDCOLOR, res)
+                if benchmark_mode:
+                    res1 = test_input("tests/%s.bg.out" % prog, None, "outputs/%s.out%s" % (prog, suffix), prog)
+                    print_benchmark(prog, suffix, res, res1)
                 else:
-                    print "Test %s: %sPASSED%s" % (prog, OKCOLOR, ENDCOLOR)
+                    print_test(prog, suffix, res)
+
+def print_test(prog, suffix, res):
+    suff = suffix and (" (" + prog + ".in" + suffix + ")")
+    if isinstance(res, str):
+        print "Test %s%s: %sFAILED%s (%s)" % (prog, suff, FAILCOLOR, ENDCOLOR, res)
+    else:
+        print "Test %s%s: %sPASSED%s" % (prog, suff, OKCOLOR, ENDCOLOR)
+
+def print_benchmark(prog, suffix, res, res1):
+    print "Test %s%s:" % (prog, suffix and (" (" + prog + ".in" + suffix + ")"))
+    if isinstance(res1, str):
+        print "    without baggy: %sFAILED%s (%s)" % (FAILCOLOR, ENDCOLOR, res1)
+    else:
+        print "    without baggy: %sPASSED%s (%.6f sec)" % (OKCOLOR, ENDCOLOR, res1)
+    if isinstance(res, str):
+        print "    with baggy:    %sFAILED%s (%s)" % (FAILCOLOR, ENDCOLOR, res)
+    else:
+        print "    with baggy:    %sPASSED%s (%.6f sec)" % (OKCOLOR, ENDCOLOR, res)
 
 def test_input(executablefile, inpfile, outfile, basename):
     if inpfile:
