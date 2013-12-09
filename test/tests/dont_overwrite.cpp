@@ -18,7 +18,7 @@ void __attribute__ ((noinline)) output(char* a, char* b, char* c) {
 	printf("\n");
 
 	for (int i = 0; i < 16; i++) {
-		printf("%d,", (int) b[i]);
+		printf("%d,", (int) c[i]);
 	}
 	printf("\n");
 }
