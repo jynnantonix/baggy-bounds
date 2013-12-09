@@ -126,6 +126,23 @@ namespace {
             break;
           }
         }
+
+        for (Function::iterator bb = F.begin(), bbend = F.end(); bb != bbend; ++bb) {
+          BasicBlock *block = &(*bb);
+          BasicBlock::InstListType& iList = block->getInstList();
+          for (BasicBlock::InstListType::iterator i = iList.begin(); i != iList.end(); ++i) {
+            if (isa<PtrToIntInst>(*i)) {
+              PtrToIntInst* ptii = cast<PtrToIntInst>(i);
+              if (ptii->getDestTy()->getPrimitiveSizeInBits() >= 32) {
+			    // AND out the most significant bit of newly created int
+			    PtrToIntInst* inst1 = cast<PtrToIntInst>(ptii->clone());
+			    BinaryOperator* inst2 = BinaryOperator::Create(Instruction::And, inst1, ConstantInt::get(IntegerType::get(block->getContext(),32), 0x7fffffff));
+			    iList.insert(i, inst1);
+				ReplaceInstWithInst(i->getParent()->getInstList(), i, inst2);
+			  }
+            }
+          }
+        }
       }
 
       return true;

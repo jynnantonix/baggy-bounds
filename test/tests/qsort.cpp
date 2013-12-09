@@ -29,6 +29,10 @@ void quick_sort(int* start, int* end) {
 		}
 		r++;
 	}
+	if (l == l2) {
+		printf("l should not equal l2");
+		exit(1);
+	}
 	quick_sort(start, l);
 	quick_sort(l2, end);
 }
