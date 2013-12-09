@@ -78,6 +78,18 @@ namespace {
       return baggyBlock;
     }
 
+    Value* castToIntAndClearTopBit(LLVMContext& ctxt,
+                                    BasicBlock::InstListType& iList,
+                                    BasicBlock::InstListType::iterator& i,
+                                    Value* val) {
+      Instruction* toIntInst = new PtrToIntInst(val, IntegerType::get(ctxt, 32));
+      Instruction* zeroBitInst = BinaryOperator::Create(Instruction::And, toIntInst,
+                ConstantInt::get(IntegerType::get(ctxt, 32), 0x7fffffff));
+      iList.insert(i, toIntInst);
+      iList.insert(i, zeroBitInst);
+      return zeroBitInst;
+    }
+
     virtual bool doInitialization(Module &M) {
       sizeTable = M.getOrInsertGlobal("baggy_size_table", Type::getInt8PtrTy(getGlobalContext()));
       slowPathFunc = M.getFunction("baggy_slowpath");
@@ -106,6 +118,20 @@ namespace {
               BinaryOperator* inst2 = BinaryOperator::Create(Instruction::And, inst1, ConstantInt::get(IntegerType::get(block->getContext(),32), 0x7fffffff));
               iList.insert(i, inst1);
               ReplaceInstWithInst(i->getParent()->getInstList(), i, inst2);
+            }
+          }
+          else if (isa<ICmpInst>(*i)) {
+            ICmpInst* ici = cast<ICmpInst>(i);
+            if (!ici->isEquality()) {
+              Value* operand2 = ici->getOperand(1);
+              ICmpInst* new_ici = cast<ICmpInst>(ici->clone());
+              for (int op_num = 0; op_num < 2; op_num++) {
+                Value* operand = ici->getOperand(op_num);
+                if (operand->getType()->isPointerTy()) {
+                  new_ici->setOperand(op_num, castToIntAndClearTopBit(block->getContext(), iList, i, operand));
+                }
+              }
+              ReplaceInstWithInst(i->getParent()->getInstList(), i, new_ici);
             }
           }
         }
