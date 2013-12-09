@@ -1,0 +1,5 @@
+a < a + 8: true!
+a - 1 < a: true!
+a - (a-1) == 4: true!
+(a+8) - a) == 32: true!
+0
