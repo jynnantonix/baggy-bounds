@@ -4,7 +4,7 @@ import subprocess
 import time
 import sys
 
-BENCHMARK_FILES = ["seating"]
+BENCHMARK_FILES = ["seating","qsort"]
 
 FAILCOLOR = '\033[91m'
 OKCOLOR = '\033[92m'
@@ -40,7 +40,7 @@ def main():
         if not inputs:
             res = test_input("tests/%s.bg.out" % prog, None, "outputs/%s.out" % prog, prog)
             if benchmark_mode:
-                res1 = test_input("tests/%s.bg.out" % prog, None, "outputs/%s.out" % prog, prog)
+                res1 = test_input("tests/%s.out" % prog, None, "outputs/%s.out" % prog, prog)
                 print_benchmark(prog, "", res, res1)
             else:
                 print_test(prog, "", res)
@@ -49,7 +49,7 @@ def main():
                 suffix = os.path.basename(inp)[len(prog+'.in'):]
                 res = test_input("tests/%s.bg.out" % prog, inp, "outputs/%s.out%s" % (prog, suffix), prog)
                 if benchmark_mode:
-                    res1 = test_input("tests/%s.bg.out" % prog, inp, "outputs/%s.out%s" % (prog, suffix), prog)
+                    res1 = test_input("tests/%s.out" % prog, inp, "outputs/%s.out%s" % (prog, suffix), prog)
                     print_benchmark(prog, suffix, res, res1)
                 else:
                     print_test(prog, suffix, res)
