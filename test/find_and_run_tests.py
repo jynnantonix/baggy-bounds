@@ -22,6 +22,7 @@ def main():
         progs = BENCHMARK_FILES
     else:
         progs = [os.path.basename(filename).split('.')[0] for filename in os.listdir(srcdir) if filename.endswith('.cpp')]
+        progs = [p for p in progs if p not in BENCHMARK_FILES]
     progs.sort()
 
     for prog in progs:
