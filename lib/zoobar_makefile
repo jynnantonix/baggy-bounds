@@ -1,0 +1,105 @@
+ASFLAGS := -m32
+CFLAGS  := -m32 -g -std=c99 -Wall -Werror -D_GNU_SOURCE
+LDFLAGS := -m32
+LDLIBS  := -lcrypto
+PROGS   := zookld zookfs zookd \
+           zookfs-exstack zookd-exstack \
+           zookfs-nxstack zookd-nxstack \
+           zookfs-withssp zookd-withssp \
+           shellcode.bin run-shellcode
+
+ifeq ($(wildcard /usr/bin/execstack),)
+  ifneq ($(wildcard /usr/sbin/execstack),)
+    ifeq ($(filter /usr/sbin,$(subst :, ,$(PATH))),)
+      PATH := $(PATH):/usr/sbin
+    endif
+  endif
+endif
+
+all: $(PROGS)
+.PHONY: all
+
+%-nxstack: %
+	cp $< $@
+
+%-exstack: %
+	cp $< $@
+	execstack -s $@
+
+%.bc: %.c
+	clang $(CFLAGS) -fno-stack-protector -emit-llvm $< -c -o $@
+
+%-withssp.bc: %.c
+	clang $(CFLAGS) -emit-llvm $< -c -o $@
+
+%.ll: %.bc
+	llvm-dis -o $@ $<
+
+%.bg.ll: %.ll
+	opt -load ../baggy/pass/build/BaggyBounds/BaggyBounds.so -baggy-pointers -baggy-save-local -baggy-rewriter -S -o $@ $<
+
+%.global: %.bg.ll http.bg.ll
+	llvm-link -o $@ $^
+
+%-withssp.global: %-withssp.bg.ll http-withssp.bg.ll
+	llvm-link -o $@ $^
+
+%.global.bg: %.global
+	opt -load ../baggy/pass/build/BaggyBounds/BaggyBounds.so -baggy-globals -S -o $@ $<
+
+%.bgo: %.global.bg
+	llc -filetype=obj -o $@ $<
+
+%.bin: %.o
+	objcopy -S -O binary -j .text $< $@
+
+zookld zookd zookfs: %: %.bgo ../baggy/lib/build/baggylib.a
+	clang $(CFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
+zookfs-withssp zookd-withssp: %: %.bgo ../baggy/lib/build/baggylib.a
+run-shellcode: %: %.o
+
+.PHONY: check-bugs
+check-bugs:
+	./check-bugs.py bugs.txt
+
+.PHONY: check-crash
+check-crash: bin.tar.gz exploit-2a.py exploit-2b.py shellcode.bin
+	tar xf bin.tar.gz
+	./check-part2.sh zook-exstack.conf ./exploit-2a.py
+	./check-part2.sh zook-exstack.conf ./exploit-2b.py
+
+.PHONY: check-exstack
+check-exstack: bin.tar.gz exploit-3.py shellcode.bin
+	tar xf bin.tar.gz
+	./check-part3.sh zook-exstack.conf ./exploit-3.py
+
+.PHONY: check-libc
+check-libc: bin.tar.gz exploit-4a.py exploit-4b.py shellcode.bin
+	tar xf bin.tar.gz
+	./check-part3.sh zook-nxstack.conf ./exploit-4a.py
+	./check-part3.sh zook-nxstack.conf ./exploit-4b.py
+
+.PHONY: check-zoobar
+check-zoobar:
+	./check_zoobar.py
+
+.PHONY: check
+check: check-zoobar check-bugs check-crash check-exstack check-libc
+
+
+.PHONY: clean
+clean:
+	rm -f *.o *.pyc *.bin *.bgo *.bg.ll *.ll *.bc $(PROGS)
+
+
+lab%-handin.tar.gz: clean
+	tar cf - `find . -type f | grep -v '^\.*$$' | grep -v '/CVS/' | grep -v '/\.svn/' | grep -v '/\.git/' | grep -v 'lab[0-9].*\.tar\.gz' | grep -v '/submit.key$$'` | gzip > $@
+
+.PHONY: prepare-submit
+prepare-submit: lab1-handin.tar.gz
+
+.PHONY: submit
+submit: lab1-handin.tar.gz
+	./submit.py $<
+
+.PRECIOUS: lab1-handin.tar.gz
