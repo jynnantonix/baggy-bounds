@@ -49,7 +49,7 @@ def main():
                 suffix = os.path.basename(inp)[len(prog+'.in'):]
                 res = test_input("tests/%s.bg.out" % prog, inp, "outputs/%s.out%s" % (prog, suffix), prog)
                 if benchmark_mode:
-                    res1 = test_input("tests/%s.bg.out" % prog, None, "outputs/%s.out%s" % (prog, suffix), prog)
+                    res1 = test_input("tests/%s.bg.out" % prog, inp, "outputs/%s.out%s" % (prog, suffix), prog)
                     print_benchmark(prog, suffix, res, res1)
                 else:
                     print_test(prog, suffix, res)
@@ -95,7 +95,7 @@ def test_input(executablefile, inpfile, outfile, basename):
     outf.close()
 
     if len(out_lines) != len(desired_out_lines):
-        return "output mismatch - wrong number of lines)"
+        return "output mismatch - wrong number of lines"
     if any(x != y and y != "?\n" for x, y in zip(out_lines, desired_out_lines)):
         return "output mismatch"
     if ret_code != desired_ret_code:
