@@ -5,7 +5,7 @@ CFLAGS = -std=gnu99 -g
 ARFLAGS = -ru
 
 CPP_FILES = initialization
-C_FILES = allocator baggy_init baggy_slowpath pointer util
+C_FILES = allocator baggy_init baggy_slowpath baggy_libc pointer util
 S_FILES = move_stack
 H_FILES = address_constants.h
 
