@@ -2,6 +2,9 @@
 
 all: tests/test-1.out tests/test-2.out tests/test-3.out tests/test-4.out tests/test-5.out tests/test-6.out tests/test-7.out tests/test-8.out tests/test-9.out tests/test-10.out tests/test-11.out tests/test-12.out
 
+%.gccout : %.cpp
+	g++ -O2 $< -c -o $@
+
 %.bc : %.cpp
 	clang++ -O2 -emit-llvm $< -c -o $@
 
@@ -20,6 +23,7 @@ CSUDIR = ../lib/start
 #g++ -u baggy_force_initialization $< ../lib/build/baggylib.a -o $@
 
 clean:
+	rm -rf tests/*.gccout
 	rm -rf tests/*.bc
 	rm -rf tests/*.ll
 	rm -rf tests/*.bg.ll
