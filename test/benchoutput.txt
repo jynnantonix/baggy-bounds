@@ -1,0 +1,48 @@
+Test qsort:
+    clang++:       [92mPASSED[0m (17.870614 sec)
+    without baggy: [92mPASSED[0m (18.127804 sec)
+    with baggy:    [92mPASSED[0m (29.229531 sec)
+Test qsort_indices:
+    clang++:       [92mPASSED[0m (18.806069 sec)
+    without baggy: [92mPASSED[0m (19.207314 sec)
+    with baggy:    [92mPASSED[0m (29.282756 sec)
+Test seating (seating.in-1):
+    clang++:       [92mPASSED[0m (0.002347 sec)
+    without baggy: [92mPASSED[0m (0.212947 sec)
+    with baggy:    [92mPASSED[0m (0.211636 sec)
+Test seating (seating.in-10):
+    clang++:       [92mPASSED[0m (0.646528 sec)
+    without baggy: [92mPASSED[0m (1.196966 sec)
+    with baggy:    [92mPASSED[0m (1.846420 sec)
+Test seating (seating.in-2):
+    clang++:       [92mPASSED[0m (0.002614 sec)
+    without baggy: [92mPASSED[0m (0.205006 sec)
+    with baggy:    [92mPASSED[0m (0.214420 sec)
+Test seating (seating.in-3):
+    clang++:       [92mPASSED[0m (0.002938 sec)
+    without baggy: [92mPASSED[0m (0.203834 sec)
+    with baggy:    [92mPASSED[0m (0.208225 sec)
+Test seating (seating.in-4):
+    clang++:       [92mPASSED[0m (0.069655 sec)
+    without baggy: [92mPASSED[0m (0.299152 sec)
+    with baggy:    [92mPASSED[0m (0.337774 sec)
+Test seating (seating.in-5):
+    clang++:       [92mPASSED[0m (0.313875 sec)
+    without baggy: [92mPASSED[0m (0.882982 sec)
+    with baggy:    [92mPASSED[0m (1.042068 sec)
+Test seating (seating.in-6):
+    clang++:       [92mPASSED[0m (0.612636 sec)
+    without baggy: [92mPASSED[0m (1.170423 sec)
+    with baggy:    [92mPASSED[0m (1.638876 sec)
+Test seating (seating.in-7):
+    clang++:       [92mPASSED[0m (0.710537 sec)
+    without baggy: [92mPASSED[0m (1.146561 sec)
+    with baggy:    [92mPASSED[0m (1.523543 sec)
+Test seating (seating.in-8):
+    clang++:       [92mPASSED[0m (0.752812 sec)
+    without baggy: [92mPASSED[0m (1.265024 sec)
+    with baggy:    [92mPASSED[0m (1.801715 sec)
+Test seating (seating.in-9):
+    clang++:       [92mPASSED[0m (0.431366 sec)
+    without baggy: [92mPASSED[0m (1.042769 sec)
+    with baggy:    [92mPASSED[0m (1.278754 sec)
