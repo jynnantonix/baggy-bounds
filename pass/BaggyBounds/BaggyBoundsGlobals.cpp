@@ -26,11 +26,6 @@ namespace {
         virtual bool runOnModule(Module &m) {
             DataLayout* DL = &getAnalysis<DataLayout>();
 
-            // Add some symbols that we need
-            Value* baggy_init = cast<Value>(m.getOrInsertFunction("baggy_init",
-                    Type::getVoidTy(getGlobalContext()),
-                    NULL));
-
             // Construct the function to add to global_ctors
             Constant* c = m.getOrInsertFunction("baggy.module_init",
                 Type::getVoidTy(getGlobalContext()), // return type
@@ -38,7 +33,6 @@ namespace {
             Function* ctor_func = cast<Function>(c);
             BasicBlock* entry = BasicBlock::Create(getGlobalContext(), "entry", ctor_func);
             IRBuilder<> builder(entry);
-            builder.CreateCall(baggy_init);
 
 			// Loop through global variables
             for (Module::global_iterator iter = m.global_begin(); iter != m.global_end(); ++iter) {

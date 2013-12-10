@@ -73,13 +73,15 @@ def print_benchmark(prog, suffix, res, res1):
     else:
         print "    with baggy:    %sPASSED%s (%.6f sec)" % (OKCOLOR, ENDCOLOR, res)
 
+env = dict(os.environ)
+env["BAGGY"] = "YES"
 def test_input(executablefile, inpfile, outfile, basename):
     if inpfile:
         inpf = open(inpfile, "r")
     else:
         inpf = subprocess.PIPE
     start = time.time()
-    proc = subprocess.Popen([executablefile], stdin=inpf, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.Popen([executablefile, "sample_argument"], stdin=inpf, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
     (out, err) = proc.communicate()
     ret_code = proc.wait()
     end = time.time()

@@ -14,13 +14,10 @@ all: tests/test-1.out tests/test-2.out tests/test-3.out tests/test-4.out tests/t
 %.o : %.ll
 	llc -filetype=obj -o $@ $<
 
-# mark baggy_force_initialization as undefined to force
-# the linker to pull in initialization stuff from the archive
+CSUDIR = ../lib/start
 %.out : %.o ../lib/build/baggylib.a
-	g++ -u baggy_force_initialization $< ../lib/build/baggylib.a -o $@
-
-#CSUDIR = ../../glibc/build/csu
-#gcc -nostartfiles $(CSUDIR)/crt1.o $(CSUDIR)/crti.o $< ../lib/build/baggylib.a $(CSUDIR)/crtn.o -o $@
+	g++ -nostartfiles $(CSUDIR)/crt1.o $(CSUDIR)/crti.o $< ../lib/build/baggylib.a $(CSUDIR)/crtn.o -o $@
+#g++ -u baggy_force_initialization $< ../lib/build/baggylib.a -o $@
 
 clean:
 	rm -rf tests/*.bc

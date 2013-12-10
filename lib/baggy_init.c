@@ -54,15 +54,57 @@ void setup_stack() {
 	munmap((void*) 0x80000000, 1 << 30);
 }
 
-void baggy_init() {
-	static bool is_initialized = false;
-	if (!is_initialized) {
-		is_initialized = true;
-
-		setup_table();
-
-		setup_stack();
-		
-		buddy_allocator_init();
+// Given the size of an allocation, return the desired aligment.
+// Finds the smallest power of 2 which is at least as large as sz
+// but uses the SLOT_SIZE if that is too low.
+unsigned int get_alignment(unsigned int sz) {
+	while ((sz & (-sz)) != sz) {
+		sz += sz & (-sz);
 	}
+	return sz < 16 ? 16 : sz;
+}
+// returns the log of a power of 2
+unsigned int get_lg(unsigned int sz) {
+	unsigned int c = 0;
+	while (sz) {
+		c++;
+		sz >>= 1;
+	}
+	return c - 1;
+}
+unsigned int fix_args_and_env(void* ptr1) {
+	// When _start calls baggy_init, it passes ptr such that ptr+4 is the value of argc.
+	// First, adjust it.
+	unsigned int* ptr = (int*)(ptr1 + STACK_END - INITIAL_STACK_END + 4);
+	int argc = *(int*)ptr;
+	// Now, adjust all the argv pointers to point to the correct location.
+	for (int i = 1; i <= argc; i++) {
+		ptr[i] += STACK_END - INITIAL_STACK_END;
+	}
+	// Same for envp
+	for (int i = argc + 2; ptr[i] != 0; i++) {
+		ptr[i] += STACK_END - INITIAL_STACK_END;
+	}
+	__environ = (void*) &ptr[argc + 2];
+
+	// return the boundary of the allocation for the arg and env information
+	int alignment = get_alignment(STACK_END - (unsigned int)ptr);
+	int lg = get_lg(alignment);
+	for (unsigned int i = STACK_END - alignment; i < STACK_END; i += 16) {
+		baggy_size_table[i/16] = lg;
+	}
+	return STACK_END - alignment;
+}
+
+extern char** __environ;
+unsigned int baggy_init(void* stack_ptr) {
+	setup_table();
+
+	setup_stack();
+
+	int st = fix_args_and_env(stack_ptr);
+		
+	buddy_allocator_init();
+
+	return st;
 }

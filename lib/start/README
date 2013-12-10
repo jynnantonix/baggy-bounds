@@ -1,0 +1,10 @@
+These three .o files, crt1.o, crti.o, and crtn.o are used in initialization. In
+particular, crt1.o contains the _start symbol where the program begins. After
+doing some basic initialization like going through all the initializers for
+different modules, it calls some other stuff and eventually calls to main().
+
+We modified sysdeps/i386/start.S in glibc which contains the definition of
+_start. Our version of the file can be found in this directory, along with the
+object files. It calls baggy_init which sets up all the memory, including the
+stack and allocator. We want to do this as early as possible so we have the most
+control.
