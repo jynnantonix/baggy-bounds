@@ -4,7 +4,7 @@ import subprocess
 import time
 import sys
 
-BENCHMARK_FILES = ["seating","qsort"]
+BENCHMARK_FILES = ["seating","qsort","qsort_indices"]
 
 FAILCOLOR = '\033[91m'
 OKCOLOR = '\033[92m'
@@ -19,7 +19,7 @@ def main():
     outputdir = os.path.join(directory, "outputs")
 
     if benchmark_mode:
-        progs = BENCHMARK_FILES
+        progs = sys.argv[2:] or BENCHMARK_FILES
     else:
         progs = [os.path.basename(filename).split('.')[0] for filename in os.listdir(srcdir) if filename.endswith('.cpp')]
         progs = [p for p in progs if p not in BENCHMARK_FILES]

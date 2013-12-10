@@ -1,1 +1,1 @@
-./runtests.sh --benchmark
+./runtests.sh --benchmark "$@"
