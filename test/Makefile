@@ -3,7 +3,10 @@
 all: tests/test-1.out tests/test-2.out tests/test-3.out tests/test-4.out tests/test-5.out tests/test-6.out tests/test-7.out tests/test-8.out tests/test-9.out tests/test-10.out tests/test-11.out tests/test-12.out
 
 %.gccout : %.cpp
-	g++ -O2 $< -c -o $@
+	g++ -O2 $< -o $@
+
+%.clangout : %.cpp
+	clang++ -O2 $< -o $@
 
 %.bc : %.cpp
 	clang++ -O2 -emit-llvm $< -c -o $@
@@ -31,3 +34,5 @@ clean:
 	rm -rf tests/*.bg.o
 	rm -rf tests/*.out
 	rm -rf tests/*.bg.out
+	rm -rf tests/*.clangout
+	rm -rf tests/*.gccout

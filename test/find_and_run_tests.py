@@ -37,12 +37,17 @@ def main():
             if proc.wait() != 0:
                 print "Test %s: %sFAILED%s to compile tests/%s.out" % (prog, FAILCOLOR, ENDCOLOR, prog)
                 continue
+            proc = subprocess.Popen(["make", "tests/%s.clangout" % prog], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if proc.wait() != 0:
+                print "Test %s: %sFAILED%s to compile tests/%s.clangout" % (prog, FAILCOLOR, ENDCOLOR, prog)
+                continue
 
         if not inputs:
             res = test_input("tests/%s.bg.out" % prog, None, "outputs/%s.out" % prog, prog)
             if benchmark_mode:
                 res1 = test_input("tests/%s.out" % prog, None, "outputs/%s.out" % prog, prog)
-                print_benchmark(prog, "", res, res1)
+                res2 = test_input("tests/%s.clangout" % prog, None, "outputs/%s.out" % prog, prog)
+                print_benchmark(prog, "", res, res1, res2)
             else:
                 print_test(prog, "", res)
         else:
@@ -51,7 +56,8 @@ def main():
                 res = test_input("tests/%s.bg.out" % prog, inp, "outputs/%s.out%s" % (prog, suffix), prog)
                 if benchmark_mode:
                     res1 = test_input("tests/%s.out" % prog, inp, "outputs/%s.out%s" % (prog, suffix), prog)
-                    print_benchmark(prog, suffix, res, res1)
+                    res2 = test_input("tests/%s.clangout" % prog, inp, "outputs/%s.out%s" % (prog, suffix), prog)
+                    print_benchmark(prog, suffix, res, res1, res2)
                 else:
                     print_test(prog, suffix, res)
 
@@ -62,8 +68,12 @@ def print_test(prog, suffix, res):
     else:
         print "Test %s%s: %sPASSED%s" % (prog, suff, OKCOLOR, ENDCOLOR)
 
-def print_benchmark(prog, suffix, res, res1):
+def print_benchmark(prog, suffix, res, res1, res2):
     print "Test %s%s:" % (prog, suffix and (" (" + prog + ".in" + suffix + ")"))
+    if isinstance(res2, str):
+        print "    clang++:       %sFAILED%s (%s)" % (FAILCOLOR, ENDCOLOR, res2)
+    else:
+        print "    clang++:       %sPASSED%s (%.6f sec)" % (OKCOLOR, ENDCOLOR, res2)
     if isinstance(res1, str):
         print "    without baggy: %sFAILED%s (%s)" % (FAILCOLOR, ENDCOLOR, res1)
     else:
