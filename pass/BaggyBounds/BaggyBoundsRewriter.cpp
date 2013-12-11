@@ -18,63 +18,28 @@
 using namespace llvm;
 
 namespace {
-  struct BaggyBoundsRewriter : public FunctionPass {
+  struct BaggyBoundsRewriter : public ModulePass {
     static char ID;
-    BaggyBoundsRewriter() : FunctionPass(ID) {}
-    StringMap<Constant *> BaggyLibc;
-    Function *StrCpy;
-    Function *StrCat;
+    BaggyBoundsRewriter() : ModulePass(ID) {}
 
-    Constant *createLibcStrFunction(Module &M, StringRef FuncName) {
-      std::vector<Type *> FuncTy_2_args;
-      FuncTy_2_args.push_back(Type::getInt8PtrTy(getGlobalContext()));
-      FuncTy_2_args.push_back(Type::getInt8PtrTy(getGlobalContext()));
-
-      FunctionType *FuncTy_str = FunctionType::get(Type::getInt8PtrTy(getGlobalContext()),
-                                                    FuncTy_2_args, false);
-
-      return M.getOrInsertFunction(FuncName, FuncTy_str);
-    }
-
-    virtual bool doInitialization(Module &M) {
-      Constant *&BaggyStrcat = BaggyLibc["baggy_strcat"];
-      if (BaggyStrcat == NULL) {
-        BaggyStrcat = createLibcStrFunction(M, "baggy_strcat");
+   virtual bool runOnModule(Module &M) {
+      Function *StrCpy = M.getFunction("strcpy");
+      if (StrCpy != NULL) {
+        Constant *BaggyStrCpy = M.getOrInsertFunction("baggy_strcpy", StrCpy->getFunctionType());
+        StrCpy->replaceAllUsesWith(BaggyStrCpy);
       }
 
-      Constant *&BaggyStrcpy = BaggyLibc["baggy_strcpy"];
-      if (BaggyStrcpy == NULL) {
-        BaggyStrcpy = createLibcStrFunction(M, "baggy_strcpy");
+      Function *StrCat = M.getFunction("strcat");
+      if (StrCat != NULL) {
+        Constant *BaggyStrCat = M.getOrInsertFunction("baggy_strcat", StrCat->getFunctionType());
+        StrCat->replaceAllUsesWith(BaggyStrCat);
       }
 
-      StrCpy = M.getFunction("strcpy");
-      StrCat = M.getFunction("strcat");
-    }
-
-    virtual bool runOnFunction(Function &F) {
-      bool ret = false;
-      if (StrCpy == NULL && StrCat == NULL) {
-        return false;
+      Function *Sprintf = M.getFunction("sprintf");
+      if (Sprintf != NULL) {
+        Constant *BaggySprintf = M.getOrInsertFunction("baggy_sprintf", Sprintf->getFunctionType());
+        Sprintf->replaceAllUsesWith(BaggySprintf);
       }
-
-      for (Function::iterator bb = F.begin(), bbend = F.end(); bb != bbend; ++bb) {
-        BasicBlock *block = &(*bb);
-        for (BasicBlock::iterator i = block->begin(), e = block->end(); i != e; ++i) {
-          if (!isa<CallInst>(*i)) {
-            continue;
-          }
-          CallInst *Call = &cast<CallInst>(*i);
-          if (Call->getCalledFunction() == StrCpy) {
-            Call->setCalledFunction(BaggyLibc["baggy_strcpy"]);
-            ret = true;
-          } else if (Call->getCalledFunction() == StrCat) {
-            Call->setCalledFunction(BaggyLibc["baggy_strcat"]);
-            ret = true;
-          }
-        }
-      }
-
-      return ret;
     }
 
     virtual void getAnalysisUsage(AnalysisUsage &Info) const {
