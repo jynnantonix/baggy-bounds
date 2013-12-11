@@ -26,4 +26,8 @@ int main(int argc, char* argv[]) {
 
 	stderr = stdout;
 	warnx("warning!");
+
+	setenv("AWESOME", "chicken", true);
+	printf("%s\n", getenv("AWESOME"));
+	print(getenv("AWESOME"));
 }
