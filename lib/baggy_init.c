@@ -72,6 +72,8 @@ unsigned int get_lg(unsigned int sz) {
 	}
 	return c - 1;
 }
+extern char** __environ;
+extern char* __progname;
 unsigned int fix_args_and_env(void* ptr1) {
 	// When _start calls baggy_init, it passes ptr such that ptr+4 is the value of argc.
 	// First, adjust it.
@@ -85,7 +87,8 @@ unsigned int fix_args_and_env(void* ptr1) {
 	for (int i = argc + 2; ptr[i] != 0; i++) {
 		ptr[i] += STACK_END - INITIAL_STACK_END;
 	}
-	__environ = (void*) &ptr[argc + 2];
+	__environ = (char**)(STACK_END - INITIAL_STACK_END + (void*) __environ);
+	__progname = STACK_END - INITIAL_STACK_END + __progname;
 
 	// return the boundary of the allocation for the arg and env information
 	int alignment = get_alignment(STACK_END - (unsigned int)ptr);
@@ -96,7 +99,6 @@ unsigned int fix_args_and_env(void* ptr1) {
 	return STACK_END - alignment;
 }
 
-extern char** __environ;
 unsigned int baggy_init(void* stack_ptr) {
 	setup_table();
 

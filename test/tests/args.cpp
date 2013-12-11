@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cstdlib>
+#include <err.h>
 
 // This file expects an argument and a BAGGY environment variable to be passed in
 // be the testing program.
@@ -22,4 +23,7 @@ int main(int argc, char* argv[]) {
 
 	print(argv[1]);
 	print(getenv("BAGGY"));
+
+	stderr = stdout;
+	warnx("warning!");
 }
