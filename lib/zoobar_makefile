@@ -53,8 +53,9 @@ all: $(PROGS)
 %.bin: %.o
 	objcopy -S -O binary -j .text $< $@
 
+CSUDIR = ../baggy/lib/start
 zookld zookd zookfs: %: %.bgo ../baggy/lib/build/baggylib.a
-	clang $(CFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
+	g++ -nostartfiles $(CFLAGS) $(CSUDIR)/crt1.o $(CSUDIR)/crti.o $^ $(CSUDIR)/crtn.o $(LDFLAGS) $(LDLIBS) -o $@
 zookfs-withssp zookd-withssp: %: %.bgo ../baggy/lib/build/baggylib.a
 run-shellcode: %: %.o
 
