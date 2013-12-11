@@ -151,7 +151,7 @@ static inline char* increase_heap_size_and_get_ptr(unsigned int size_to_allocate
 
 void* malloc(size_t size) {
 	if (size == 0) {
-		return NULL;
+		return heap_end;
 	}
 	// allocate the smallest sufficient power of two block >= size
 	unsigned int size_to_allocate = 1 << ((unsigned int)get_log2(size));
@@ -225,6 +225,9 @@ void free(void* ptr) {
 		return;
 	}
 	unsigned int size = 1 << get_logsize(get_slot_metadata(get_slot_id(ptr)));
+	if (size == 1) {
+		return; /* nothing is allocated here, maybe allocated as 0 bytes earlier? */
+	}
 	unsigned int bin_id = get_log2(size);
 	table_mark(ptr, size, FREE);
 	list_append((list_node_t*)ptr, bin_id);
