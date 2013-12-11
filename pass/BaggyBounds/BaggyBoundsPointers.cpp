@@ -7,6 +7,7 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/Module.h"
@@ -23,7 +24,50 @@ namespace {
     Constant *sizeTable;
     Constant  *slowPathFunc;
 
-    BasicBlock *createBaggyBlock(BasicBlock *orig, GetElementPtrInst *i, PHINode *phi) {
+    BasicBlock *instrumentMemset(BasicBlock *orig, MemSetInst *i) {
+      BasicBlock *baggyBlock = BasicBlock::Create(orig->getContext(), "baggy.check",
+                                                  orig->getParent(), orig);
+      IRBuilder<> builder(baggyBlock);
+
+      Value *Base = i->getDest();
+      Value *Length = i->getLength();
+      Value *BaseInt = builder.CreatePtrToInt(Base, Type::getInt32Ty(baggyBlock->getContext()));
+      Value *EndInt = builder.CreateAdd(BaseInt, Length);
+      Value *TableOffset = builder.CreateLShr(BaseInt, 4, "baggy.offset");
+      LoadInst *SizeTablePtr = builder.CreateLoad(sizeTable, "baggy.table");
+      Value *Tableaddr = builder.CreateInBoundsGEP(SizeTablePtr, TableOffset);
+      LoadInst *Size = builder.CreateLoad(Tableaddr, "alloc.size");
+      Value *MaskedSize = builder.CreateZExtOrBitCast(Size, Type::getInt32Ty(baggyBlock->getContext()));
+      Value *SizeInt = builder.CreateAnd(MaskedSize, 0x1F);
+      Value *Xor = builder.CreateXor(BaseInt, EndInt);
+      Value *Result = builder.CreateAShr(Xor, SizeInt);
+
+      // Add the memset instruction to this block
+      baggyBlock->getInstList().push_back(i);
+
+      // Create the slowpath block
+      BasicBlock *slowPathBlock = BasicBlock::Create(baggyBlock->getContext(), "baggy.slowPath",
+                                                     baggyBlock->getParent(), orig);
+      IRBuilder<> slowPathBuilder(slowPathBlock);
+      Value *slowPathBr, *bufcast, *pcast, *retptr;
+
+      bufcast = slowPathBuilder.CreatePointerCast(Base, Type::getInt8PtrTy(baggyBlock->getContext()));
+      pcast = slowPathBuilder.CreateIntToPtr(EndInt, Type::getInt8PtrTy(baggyBlock->getContext()));
+      retptr = slowPathBuilder.CreateCall2(slowPathFunc, bufcast, pcast);
+      slowPathBr = slowPathBuilder.CreateBr(orig);
+
+      // Branch to slowpath if necessary
+      MDBuilder weightBuilder(baggyBlock->getContext());
+      MDNode *branchWeights;
+      Value *baggyCheck, *baggyBr;
+      baggyCheck = builder.CreateICmpEQ(Result,ConstantInt::get(IntegerType::get(baggyBlock->getContext(), 32), 0));
+      branchWeights = weightBuilder.createBranchWeights(99, 1);
+      baggyBr = builder.CreateCondBr(baggyCheck, orig, slowPathBlock, branchWeights);
+
+      return baggyBlock;
+    }
+
+    BasicBlock *instrumentGEP(BasicBlock *orig, GetElementPtrInst *i, PHINode *phi) {
       BasicBlock *baggyBlock = BasicBlock::Create(orig->getContext(), "baggy.check",
                                                   orig->getParent(), orig);
       IRBuilder<> builder(baggyBlock);
@@ -152,7 +196,31 @@ namespace {
             ReplaceInstWithInst(i->getParent()->getInstList(), i, phi);
 
             // Create the instrumentation block
-            baggy = createBaggyBlock(after, inst, phi);
+            baggy = instrumentGEP(after, inst, phi);
+
+            // Have control flow through the instrumentation block
+            TerminatorInst *term = block->getTerminator();
+            if (term == NULL) {
+              block->getInstList().push_back(BranchInst::Create(baggy));
+            } else {
+              term->setSuccessor(0, baggy);
+            }
+
+            // Skip the newly created instrumentation basicblock
+            ++bb;
+
+            // We're done with this block
+            break;
+          } else if (isa<MemSetInst>(*i)) {
+            BasicBlock *after = block->splitBasicBlock(i, "baggy.split");
+            BasicBlock *baggy;
+            MemSetInst *inst = cast<MemSetInst>(i);
+
+            // remove the instruction from this block
+            i->removeFromParent();
+
+            // Instrument the function
+            baggy = instrumentMemset(after, inst);
 
             // Have control flow through the instrumentation block
             TerminatorInst *term = block->getTerminator();
