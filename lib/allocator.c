@@ -38,7 +38,7 @@ static inline void table_mark(char* ptr, unsigned int size, unsigned char used) 
 	unsigned int log2_size = get_log2(size);
 	unsigned int slot_id = get_slot_id(ptr);
 	unsigned int first_slot_id = get_slot_id(ptr);
-	char* first_address_after_last_slot = ptr + (size / sizeof(char));
+	char* first_address_after_last_slot = (char*)(slot_id*SLOT_SIZE + (size / sizeof(char)));
 	while (((unsigned int)heap_start) + slot_id * SLOT_SIZE <
 			((unsigned int)first_address_after_last_slot)) {
 		// TODO(aanastasov): try to optimize by just setting the first slot,
@@ -123,6 +123,7 @@ void buddy_allocator_init() {
 static inline char* increase_heap_size_and_get_ptr(unsigned int size_to_allocate,
 		unsigned int* _bin_id) {
 	unsigned int size_allocated;
+	unsigned slot_id;
 	char* ptr;
 	do {
 		unsigned int bin_id = 0;
@@ -134,6 +135,11 @@ static inline char* increase_heap_size_and_get_ptr(unsigned int size_to_allocate
 		ptr = (char*)sbrk(size_allocated);
 		if (ptr < 0) { // sbrk failed
 			break;
+		}
+		for (slot_id = get_slot_id(heap_end); slot_id * SLOT_SIZE < (unsigned)ptr; slot_id++) {
+			set_slot_metadata(slot_id, form_metadata(get_log2(SLOT_SIZE), USED));
+			heap_end += SLOT_SIZE;
+			heap_size += SLOT_SIZE;
 		}
 		if (size_allocated >= SLOT_SIZE) {
 			table_mark(ptr, size_allocated, FREE);
@@ -194,6 +200,16 @@ void* malloc(size_t size) {
 	table_mark(ptr, 1 << bin_id, USED);
 	list_remove((list_node_t*)ptr);
 	return (void*)ptr;
+}
+
+void* calloc (size_t num, size_t size) {
+	void *ret = malloc(num*size);
+
+	if (ret != NULL) {
+		memset(ret, 0, num*size);
+	}
+
+	return ret;
 }
 
 void* realloc(void* ptr, size_t size) {
