@@ -17,7 +17,7 @@ int main() {
                        a[n - 1 - j] -= checksum;
                        checksum += a[n - 1 - j];
                }
-               int *b = &a[n - 1];
+               int *b = &a[n - 1 - (rand() % 3)];
                ++b;
                checksum += (unsigned int)(b - a) * 12512;
        }
