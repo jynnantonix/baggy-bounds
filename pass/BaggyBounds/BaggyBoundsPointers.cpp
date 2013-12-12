@@ -184,7 +184,7 @@ namespace {
       for (Function::iterator bb = F.begin(), bbend = F.end(); bb != bbend; ++bb) {
         BasicBlock *block = &(*bb);
         for (BasicBlock::iterator i = block->begin(), e = block->end(); i != e; ++i) {
-          if (isa<GetElementPtrInst>(*i)) {
+          if (isa<GetElementPtrInst>(*i) && !cast<GetElementPtrInst>(i)->hasAllZeroIndices()) {
             BasicBlock *after = block->splitBasicBlock(i, "baggy.split");
             BasicBlock *baggy;
             PHINode *phi;

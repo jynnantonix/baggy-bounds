@@ -25,6 +25,7 @@ static inline unsigned int get_log2(unsigned int);
 void* malloc(size_t);
 void* realloc(void*, size_t);
 void free(void*);
+void* calloc (size_t num, size_t size);
 
 char* heap_start;
 char* heap_end;
@@ -150,7 +151,7 @@ static inline char* increase_heap_size_and_get_ptr(unsigned int size_to_allocate
 
 void* malloc(size_t size) {
 	if (size == 0) {
-		return NULL;
+		size = 16;
 	}
 	// allocate the smallest sufficient power of two block >= size
 	unsigned int size_to_allocate = 1 << ((unsigned int)get_log2(size));
@@ -254,4 +255,12 @@ void free(void* ptr) {
 			try_coalescing = 0;
 		}
 	} while (try_coalescing);
+}
+
+void* calloc (size_t num, size_t size) {
+	char* ptr = (char*) malloc(num * size);
+	for (int i = 0; i < num * size; i++) {
+		ptr[i] = 0;
+	}
+	return ptr;
 }

@@ -62,7 +62,7 @@ int baggy_sprintf (char *str, const char *format, ... )
 	log_size = baggy_size_table[dest_ptr>>4];
 	alloc_size = 1 << log_size;
 	base_ptr = (dest_ptr & (~0xf));
-	offset = dest_ptr = base_ptr;
+	offset = dest_ptr - base_ptr;
 
 	if (ret + offset > alloc_size) {
 		puts("Baggy libc segmentation fault\n");
