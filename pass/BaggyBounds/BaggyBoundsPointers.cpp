@@ -31,8 +31,14 @@ namespace {
 
       Value *Base = i->getDest();
       Value *Length = i->getLength();
+      Value *LengthSized;
+      if (Length->getType()->getPrimitiveSizeInBits() > 32)  {
+        LengthSized = builder.CreateTrunc(Length, Type::getInt32Ty(baggyBlock->getContext()));
+      } else {
+        LengthSized = builder.CreateZExtOrBitCast(Length, Type::getInt32Ty(baggyBlock->getContext()));
+      }
       Value *BaseInt = builder.CreatePtrToInt(Base, Type::getInt32Ty(baggyBlock->getContext()));
-      Value *EndInt = builder.CreateAdd(BaseInt, Length);
+      Value *EndInt = builder.CreateAdd(BaseInt, LengthSized);
       Value *TableOffset = builder.CreateLShr(BaseInt, 4, "baggy.offset");
       LoadInst *SizeTablePtr = builder.CreateLoad(sizeTable, "baggy.table");
       Value *Tableaddr = builder.CreateInBoundsGEP(SizeTablePtr, TableOffset);
