@@ -1,0 +1,60 @@
+Test matrix_mult:
+    clang++:       [92mPASSED[0m (17.010336 sec)
+    without baggy: [92mPASSED[0m (20.952791 sec)
+    with baggy:    [92mPASSED[0m (40.993708 sec)
+Test qsort:
+    clang++:       [92mPASSED[0m (17.972613 sec)
+    without baggy: [92mPASSED[0m (19.383791 sec)
+    with baggy:    [92mPASSED[0m (29.358332 sec)
+Test qsort_indices:
+    clang++:       [92mPASSED[0m (19.432084 sec)
+    without baggy: [92mPASSED[0m (19.155170 sec)
+    with baggy:    [92mPASSED[0m (27.311142 sec)
+Test qsort_vector:
+    clang++:       [92mPASSED[0m (18.167863 sec)
+    without baggy: [92mPASSED[0m (20.219339 sec)
+    with baggy:    [92mPASSED[0m (27.707274 sec)
+Test seating (seating.in-1):
+    clang++:       [92mPASSED[0m (0.002562 sec)
+    without baggy: [92mPASSED[0m (0.002646 sec)
+    with baggy:    [92mPASSED[0m (0.190489 sec)
+Test seating (seating.in-10):
+    clang++:       [92mPASSED[0m (0.665382 sec)
+    without baggy: [92mPASSED[0m (0.981581 sec)
+    with baggy:    [92mPASSED[0m (1.703171 sec)
+Test seating (seating.in-2):
+    clang++:       [92mPASSED[0m (0.002313 sec)
+    without baggy: [92mPASSED[0m (0.003159 sec)
+    with baggy:    [92mPASSED[0m (0.217369 sec)
+Test seating (seating.in-3):
+    clang++:       [92mPASSED[0m (0.002870 sec)
+    without baggy: [92mPASSED[0m (0.003080 sec)
+    with baggy:    [92mPASSED[0m (0.216763 sec)
+Test seating (seating.in-4):
+    clang++:       [92mPASSED[0m (0.061980 sec)
+    without baggy: [92mPASSED[0m (0.089662 sec)
+    with baggy:    [92mPASSED[0m (0.328444 sec)
+Test seating (seating.in-5):
+    clang++:       [92mPASSED[0m (0.273997 sec)
+    without baggy: [92mPASSED[0m (0.367964 sec)
+    with baggy:    [92mPASSED[0m (1.015122 sec)
+Test seating (seating.in-6):
+    clang++:       [92mPASSED[0m (0.569284 sec)
+    without baggy: [92mPASSED[0m (0.787445 sec)
+    with baggy:    [92mPASSED[0m (1.454050 sec)
+Test seating (seating.in-7):
+    clang++:       [92mPASSED[0m (0.569821 sec)
+    without baggy: [92mPASSED[0m (0.813346 sec)
+    with baggy:    [92mPASSED[0m (1.469468 sec)
+Test seating (seating.in-8):
+    clang++:       [92mPASSED[0m (0.729240 sec)
+    without baggy: [92mPASSED[0m (1.031744 sec)
+    with baggy:    [92mPASSED[0m (1.739305 sec)
+Test seating (seating.in-9):
+    clang++:       [92mPASSED[0m (0.409014 sec)
+    without baggy: [92mPASSED[0m (0.601277 sec)
+    with baggy:    [92mPASSED[0m (1.257422 sec)
+Test stress_slowpath:
+    clang++:       [92mPASSED[0m (0.747326 sec)
+    without baggy: [92mPASSED[0m (1.025695 sec)
+    with baggy:    [92mPASSED[0m (1.341716 sec)
