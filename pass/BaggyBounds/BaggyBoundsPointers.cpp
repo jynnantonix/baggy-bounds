@@ -41,7 +41,7 @@ namespace {
     // map from global variables to their sizes
     map<Value*, int> globalVarSizes;
 
-    BasicBlock *instrumentMemset(BasicBlock *orig, MemSetInst *i, map<Value*,Value*>& ptrToSize) {
+    BasicBlock *instrumentMemset(BasicBlock *orig, MemSetInst *i, Value* sizeValue) {
      BasicBlock *baggyBlock = BasicBlock::Create(orig->getContext(), "baggy.check",
                                                   orig->getParent(), orig);
       IRBuilder<> builder(baggyBlock);
@@ -62,8 +62,7 @@ namespace {
       Value *Tableaddr = builder.CreateInBoundsGEP(SizeTablePtr, TableOffset);
       LoadInst *Size = builder.CreateLoad(Tableaddr, "alloc.size");
       */
-      Value *Size = ptrToSize[Base];
-      Value *MaskedSize = builder.CreateZExtOrBitCast(Size, Type::getInt32Ty(baggyBlock->getContext()));
+      Value *MaskedSize = builder.CreateZExtOrBitCast(sizeValue, Type::getInt32Ty(baggyBlock->getContext()));
       Value *SizeInt = builder.CreateAnd(MaskedSize, 0x1F);
       Value *Xor = builder.CreateXor(BaseInt, EndInt);
       Value *Result = builder.CreateAShr(Xor, SizeInt);
@@ -397,6 +396,8 @@ namespace {
             // We're done with this block
             break;
           } else if (isa<MemSetInst>(*i)) {
+		    Value* sizeValue = ptrToSize[&*(i->getOperand(0))];
+
             BasicBlock *after = block->splitBasicBlock(i, "baggy.split");
             BasicBlock *baggy;
             MemSetInst *inst = cast<MemSetInst>(i);
@@ -405,7 +406,7 @@ namespace {
             i->removeFromParent();
 
             // Instrument the function
-            baggy = instrumentMemset(after, inst, ptrToSize);
+            baggy = instrumentMemset(after, inst, sizeValue);
 
             // Have control flow through the instrumentation block
             TerminatorInst *term = block->getTerminator();
