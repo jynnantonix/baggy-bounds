@@ -40,6 +40,12 @@ namespace {
         Constant *BaggySprintf = M.getOrInsertFunction("baggy_sprintf", Sprintf->getFunctionType());
         Sprintf->replaceAllUsesWith(BaggySprintf);
       }
+
+	  Function *Snprintf = M.getFunction("snprintf");
+      if (Snprintf != NULL) {
+        Constant *BaggySnprintf = M.getOrInsertFunction("baggy_snprintf", Snprintf->getFunctionType());
+        Snprintf->replaceAllUsesWith(BaggySnprintf);
+      }
     }
 
     virtual void getAnalysisUsage(AnalysisUsage &Info) const {
