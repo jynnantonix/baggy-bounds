@@ -1,3 +1,8 @@
+#include <map>
+#include <set>
+#include <vector>
+#include <cstdio>
+
 #include "llvm/Pass.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -14,18 +19,30 @@
 #include "llvm/IR/Type.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Analysis/Dominators.h"
+#include "llvm/ADT/StringMap.h"
+
+#include "Util.h"
 
 using namespace llvm;
+using std::map;
+using std::set;
+using std::vector;
 
 namespace {
-  struct BaggyBoundsPointers : public FunctionPass {
+  struct BaggyBoundsPointers : public ModulePass {
     static char ID;
-    BaggyBoundsPointers() : FunctionPass(ID) {}
+    BaggyBoundsPointers() : ModulePass(ID) {}
     Constant *sizeTable;
-    Constant  *slowPathFunc;
+    Constant *slowPathFunc;
+    DominatorTree* DT;
+    DataLayout* DL;
 
-    BasicBlock *instrumentMemset(BasicBlock *orig, MemSetInst *i) {
-      BasicBlock *baggyBlock = BasicBlock::Create(orig->getContext(), "baggy.check",
+    // map from global variables to their sizes
+    map<Value*, int> globalVarSizes;
+
+    BasicBlock *instrumentMemset(BasicBlock *orig, MemSetInst *i, map<Value*,Value*>& ptrToSize) {
+     BasicBlock *baggyBlock = BasicBlock::Create(orig->getContext(), "baggy.check",
                                                   orig->getParent(), orig);
       IRBuilder<> builder(baggyBlock);
 
@@ -39,10 +56,13 @@ namespace {
       }
       Value *BaseInt = builder.CreatePtrToInt(Base, Type::getInt32Ty(baggyBlock->getContext()));
       Value *EndInt = builder.CreateAdd(BaseInt, LengthSized);
+      /*
       Value *TableOffset = builder.CreateLShr(BaseInt, 4, "baggy.offset");
       LoadInst *SizeTablePtr = builder.CreateLoad(sizeTable, "baggy.table");
       Value *Tableaddr = builder.CreateInBoundsGEP(SizeTablePtr, TableOffset);
       LoadInst *Size = builder.CreateLoad(Tableaddr, "alloc.size");
+      */
+      Value *Size = ptrToSize[Base];
       Value *MaskedSize = builder.CreateZExtOrBitCast(Size, Type::getInt32Ty(baggyBlock->getContext()));
       Value *SizeInt = builder.CreateAnd(MaskedSize, 0x1F);
       Value *Xor = builder.CreateXor(BaseInt, EndInt);
@@ -73,14 +93,17 @@ namespace {
       return baggyBlock;
     }
 
-    BasicBlock *instrumentGEP(BasicBlock *orig, GetElementPtrInst *i, PHINode *phi) {
+    BasicBlock *instrumentGEP(BasicBlock *orig, GetElementPtrInst *i, PHINode *phi,
+                                                              Value* sizeValue) {
       BasicBlock *baggyBlock = BasicBlock::Create(orig->getContext(), "baggy.check",
                                                   orig->getParent(), orig);
       IRBuilder<> builder(baggyBlock);
-      Value *base, *baseint, *tableoffset, *tableaddr, *inst, *sizeint, *tmpsize, *sizeTableAddr;
-      LoadInst *size, *sizeTablePtr;
+      Value *tmpsize, *sizeint, *baseint, *base;
 
       // Baggy lookup
+      /*
+      Value *base, *baseint, *tableoffset, *tableaddr, *inst, *sizeint, *tmpsize, *sizeTableAddr;
+      Value *size, *sizeTablePtr;
       base = builder.CreateConstInBoundsGEP1_32(i->getOperand(0), 0, "baggy.base");
       baseint = builder.CreatePtrToInt(base, IntegerType::get(baggyBlock->getContext(), 32));
       tableoffset = builder.CreateLShr(baseint, 4, "baggy.offset");
@@ -88,7 +111,10 @@ namespace {
       sizeTablePtr = builder.CreateLoad(sizeTable, "baggy.table");
       tableaddr = builder.CreateInBoundsGEP(sizeTablePtr, tableoffset);
       size = builder.CreateLoad(tableaddr, "alloc.size");
-      tmpsize = builder.CreateZExtOrBitCast(size, IntegerType::get(baggyBlock->getContext(), 32));
+      */
+      base = builder.CreateConstInBoundsGEP1_32(i->getOperand(0), 0, "baggy.base");
+      baseint = builder.CreatePtrToInt(base, IntegerType::get(baggyBlock->getContext(), 32));
+      tmpsize = builder.CreateZExtOrBitCast(sizeValue, IntegerType::get(baggyBlock->getContext(), 32));
       sizeint = builder.CreateAnd(tmpsize, 0x1F);
 
       // insert arithmetic
@@ -140,7 +166,7 @@ namespace {
       return zeroBitInst;
     }
 
-    virtual bool doInitialization(Module &M) {
+    virtual bool runOnModule(Module &M) {
       sizeTable = M.getOrInsertGlobal("baggy_size_table", Type::getInt8PtrTy(getGlobalContext()));
       slowPathFunc = M.getFunction("baggy_slowpath");
       if (!slowPathFunc) {
@@ -153,9 +179,154 @@ namespace {
 
         slowPathFunc = M.getOrInsertFunction("baggy_slowpath", FuncTy_bsp);
       }
+
+      DL = &getAnalysis<DataLayout>();
+
+      for (Module::global_iterator globalVar = M.global_begin();
+            globalVar != M.global_end(); ++globalVar) {
+        globalVarSizes[globalVar] = DL->getTypeAllocSize(globalVar->getType()->getElementType());
+      }
+
+      for (Module::FunctionListType::iterator F = M.begin(); F != M.end(); ++F) {
+        if (F->begin() != F->end()) {
+          // check that it isn't just a declaration
+          runOnFunction(*F);
+        }
+      }
     }
 
-    virtual bool runOnFunction(Function &F) {
+    void getPointerSizesBasicBlock(DomTreeNode *N, Value* SizeTablePtr, map<Value*,Value*>& ptrToSize, set<Value*>& ignorePtrs, BasicBlock::InstListType::iterator startIter) {
+      BasicBlock* BB = N->getBlock();
+
+      BasicBlock::InstListType& instList = BB->getInstList();
+
+      for (BasicBlock::InstListType::iterator inst = startIter;
+              inst != instList.end(); ++inst) {
+        if (inst->getType()->isPointerTy()) {
+          switch (inst->getOpcode()) {
+          case Instruction::GetElementPtr:
+            ptrToSize[inst] = ptrToSize[inst->getOperand(0)];
+            break;
+          case Instruction::PHI:
+          {
+            PHINode* phi = cast<PHINode>(inst);
+            PHINode* new_phi = PHINode::Create(IntegerType::get(BB->getContext(), 8),
+                                                phi->getNumIncomingValues());
+            instList.insert(inst, new_phi);
+            ptrToSize[phi] = new_phi;
+            // Due to cyclicity (i.e., a phi node is not dominated by the definitions of
+            // all of its arguments) we need to create everything ptrToSize before we
+            // can insert values into the newly created phi node new_phi. We will do this
+            // at the end.
+
+            break;
+          }
+          case Instruction::Alloca:
+          {
+            unsigned int allocation_size = DL->getTypeAllocSize(cast<AllocaInst>(inst)->getType()->getElementType());
+            unsigned int real_allocation_size = get_alignment(allocation_size);
+            ptrToSize[inst] = ConstantInt::get(IntegerType::get(BB->getContext(), 8), real_allocation_size);
+            break;
+          }
+          case Instruction::BitCast:
+          {
+            Value* operand = inst->getOperand(0);
+            if (operand->getType()->isPointerTy()) {
+              ptrToSize[inst] = ptrToSize[operand];
+              break;
+            }
+            // else spill over into default
+          }
+
+          // TODO any more to add? maybe a malloc or realloc call?
+          default:
+            Instruction* base = GetElementPtrInst::CreateInBounds(inst, ConstantInt::get(IntegerType::get(BB->getContext(), 32), 0), "baggy.base");
+            Instruction* baseint = new PtrToIntInst(base, IntegerType::get(BB->getContext(), 32));
+            Instruction* tableoffset = BinaryOperator::Create(Instruction::LShr, baseint, ConstantInt::get(IntegerType::get(BB->getContext(), 32), 4), "baggy.offset");
+            Instruction* tableaddr = GetElementPtrInst::CreateInBounds(SizeTablePtr, tableoffset);
+            Instruction* size = new LoadInst(tableaddr); //, Twine("alloc.size.", inst->getValueName()->getKey())); 
+            ptrToSize[inst] = size;
+            ++inst;
+            instList.insert(inst, base);
+            instList.insert(inst, baseint);
+            instList.insert(inst, tableoffset);
+            instList.insert(inst, tableaddr);
+            instList.insert(inst, size);
+            --inst;
+            ignorePtrs.insert(tableaddr);
+            ignorePtrs.insert(base);
+            break;
+          }
+        }
+      }
+
+      // recurse on children
+      const std::vector<DomTreeNode*> &Children = N->getChildren();
+      for (unsigned i = 0, e = Children.size(); i != e; ++i) {
+        getPointerSizesBasicBlock(Children[i], SizeTablePtr, ptrToSize, ignorePtrs, Children[i]->getBlock()->getInstList().begin());
+      }
+
+    }
+
+    void getPointerSizes(Function& F, map<Value*, Value*>& ptrToSize, set<Value*>& ignorePtrs) {
+      // Globals
+      for (map<Value*, int>::iterator globalVarP = globalVarSizes.begin();
+                globalVarP != globalVarSizes.end(); ++globalVarP) {
+        Value* globalVar = globalVarP->first;
+        unsigned int real_allocation_size = get_alignment(globalVarP->second);
+        ptrToSize[globalVar] = ConstantInt::get(IntegerType::get(F.getContext(), 32), real_allocation_size);
+      }
+
+      BasicBlock& entryBlock = F.getEntryBlock();
+      BasicBlock::InstListType& instList = entryBlock.getInstList();
+      BasicBlock::InstListType::iterator iter = instList.begin();
+
+      // Load the value of baggy_size_table first
+      LoadInst *SizeTablePtr = new LoadInst(sizeTable, "baggy.table");
+      instList.insert(iter, SizeTablePtr);
+
+      // Arguments, place at top of entry block (entry block has no phi nodes)
+      Function::ArgumentListType& argumentList = F.getArgumentList();
+
+      for (Function::ArgumentListType::iterator argument = argumentList.begin();
+                argument != argumentList.end(); ++argument) {
+        if (argument->getType()->isPointerTy()) {
+          Instruction* base = GetElementPtrInst::CreateInBounds(argument, ConstantInt::get(IntegerType::get(F.getContext(), 32), 0), "baggy.base");
+          Instruction* baseint = new PtrToIntInst(base, IntegerType::get(F.getContext(), 32));
+          Instruction* tableoffset = BinaryOperator::Create(Instruction::LShr, baseint, ConstantInt::get(IntegerType::get(F.getContext(), 32), 4), "baggy.offset");
+          Instruction* tableaddr = GetElementPtrInst::CreateInBounds(SizeTablePtr, tableoffset);
+          Instruction* size = new LoadInst(tableaddr); //, Twine("alloc.size.", argument->getValueName()->getKey()));
+          instList.insert(iter, base);
+          instList.insert(iter, baseint);
+          instList.insert(iter, tableoffset);
+          instList.insert(iter, tableaddr);
+          instList.insert(iter, size);
+          ptrToSize[argument] = size;
+          ignorePtrs.insert(base);
+          ignorePtrs.insert(tableaddr);
+        }
+      }
+
+      // Traverse dominator tree in pre-order so that we see definitions before uses.
+      getPointerSizesBasicBlock(DT->getNode(&entryBlock), SizeTablePtr, ptrToSize, ignorePtrs, iter);
+
+      // Now finish off the phi nodes
+      for (map<Value*, Value*>::iterator phi_pair = ptrToSize.begin(); phi_pair != ptrToSize.end(); ++phi_pair) {
+        if (isa<PHINode>(phi_pair->first)) {
+          PHINode* phi = cast<PHINode>(phi_pair->first);
+          PHINode* new_phi = cast<PHINode>(phi_pair->second);
+          for (PHINode::block_iterator pred_bb = phi->block_begin();
+                  pred_bb != phi->block_end(); ++pred_bb) {
+            new_phi->addIncoming(ptrToSize[phi->getIncomingValueForBlock(*pred_bb)], *pred_bb);
+          }
+        }
+      }
+
+    }
+
+    bool runOnFunction(Function &F) {
+      DT = &getAnalysis<DominatorTree>(F);
+
       for (Function::iterator bb = F.begin(), bbend = F.end(); bb != bbend; ++bb) {
         BasicBlock *block = &(*bb);
         BasicBlock::InstListType& iList = block->getInstList();
@@ -187,10 +358,18 @@ namespace {
         }
       }
 
+      map<Value*, Value*> ptrToSize;
+      set<Value*> ignorePtrs; // any new getelementptr instructions you make should be ignored
+      getPointerSizes(F, ptrToSize, ignorePtrs); // fills up ptrToSize map
+
       for (Function::iterator bb = F.begin(), bbend = F.end(); bb != bbend; ++bb) {
         BasicBlock *block = &(*bb);
         for (BasicBlock::iterator i = block->begin(), e = block->end(); i != e; ++i) {
-          if (isa<GetElementPtrInst>(*i) && !cast<GetElementPtrInst>(i)->hasAllZeroIndices()) {
+          if (isa<GetElementPtrInst>(*i) && !cast<GetElementPtrInst>(i)->hasAllZeroIndices()
+                         && ignorePtrs.find(&*i) == ignorePtrs.end()) {
+            // get the value now before replacing i
+            Value* sizeValue = ptrToSize[&*i];
+
             BasicBlock *after = block->splitBasicBlock(i, "baggy.split");
             BasicBlock *baggy;
             PHINode *phi;
@@ -202,7 +381,7 @@ namespace {
             ReplaceInstWithInst(i->getParent()->getInstList(), i, phi);
 
             // Create the instrumentation block
-            baggy = instrumentGEP(after, inst, phi);
+            baggy = instrumentGEP(after, inst, phi, sizeValue);
 
             // Have control flow through the instrumentation block
             TerminatorInst *term = block->getTerminator();
@@ -226,7 +405,7 @@ namespace {
             i->removeFromParent();
 
             // Instrument the function
-            baggy = instrumentMemset(after, inst);
+            baggy = instrumentMemset(after, inst, ptrToSize);
 
             // Have control flow through the instrumentation block
             TerminatorInst *term = block->getTerminator();
@@ -249,6 +428,8 @@ namespace {
     }
 
     virtual void getAnalysisUsage(AnalysisUsage &Info) const {
+	    Info.addRequired<DataLayout>();
+	    Info.addRequired<DominatorTree>();
     }
   };
 }
@@ -257,5 +438,5 @@ char BaggyBoundsPointers::ID = 0;
 static RegisterPass<BaggyBoundsPointers>
 X("baggy-pointers",
   "Baggy Bounds Pointer Instrumentation Pass",
-  true,
+  false,
   false);
