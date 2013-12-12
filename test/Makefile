@@ -12,7 +12,7 @@ all: tests/test-1.out tests/test-2.out tests/test-3.out tests/test-4.out tests/t
 	clang++ -O2 -emit-llvm $< -c -o $@
 
 %.bg.ll : %.ll ../pass/build/BaggyBounds/BaggyBounds.so
-	opt -load ../pass/build/BaggyBounds/BaggyBounds.so -baggy-pointers -baggy-globals -baggy-save-local -S -o $@ $<
+	opt -load ../pass/build/BaggyBounds/BaggyBounds.so -baggy-pointers -baggy-globals -baggy-save-local -baggy-rewriter -S -o $@ $<
 
 %.ll : %.bc
 	llvm-dis -o $@ $<
