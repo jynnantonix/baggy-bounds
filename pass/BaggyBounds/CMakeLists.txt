@@ -5,4 +5,5 @@ add_llvm_loadable_module(BaggyBounds
   BaggyBoundsRewriter.cpp
   BaggyLoopAnalysis.cpp
   Util.cpp
+  EscapeTracking.cpp
 )

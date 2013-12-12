@@ -3,6 +3,8 @@
 #include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/IR/IRBuilder.h"
 
+#include "EscapeTracking.h"
+
 #include "Util.h"
 
 using namespace llvm;
@@ -27,13 +29,13 @@ namespace {
             // and if storing counts as escaping, respectively. We say yes
             // to both. Of course, it is undefined behaviour to return a pointer
             // to this stack-allocated object, so that argument should be irrelevant.
-            //if (PointerMayBeCaptured(inst, true, true)) {
+            if (PointerMayLeave(inst, true, true)) {
             	// Cast the pointer to an int and then add a save instruction.
 				CastInst* intPtr = new PtrToIntInst(inst, IntegerType::get(M.getContext(), 32), "");
                 Instruction* saveInst = get_save_in_table_instr(M, intPtr, real_allocation_size);
 				iList.insertAfter(iiter, saveInst);
 				iList.insertAfter(iiter, intPtr);
-            //}
+            }
         }
 
         virtual bool runOnModule(Module& M) {
