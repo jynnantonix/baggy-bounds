@@ -77,7 +77,7 @@ extern char* __progname;
 unsigned int fix_args_and_env(void* ptr1) {
 	// When _start calls baggy_init, it passes ptr such that ptr+4 is the value of argc.
 	// First, adjust it.
-	unsigned int* ptr = (int*)(ptr1 + STACK_END - INITIAL_STACK_END + 4);
+	unsigned int* ptr = (unsigned int*)(ptr1 + STACK_END - INITIAL_STACK_END + 4);
 	int argc = *(int*)ptr;
 	// Now, adjust all the argv pointers to point to the correct location.
 	for (int i = 1; i <= argc; i++) {
