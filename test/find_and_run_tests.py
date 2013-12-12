@@ -61,6 +61,14 @@ def main():
                 else:
                     print_test(prog, suffix, res)
 
+    if not benchmark_mode:
+        for prog in BENCHMARK_FILES:
+            proc = subprocess.Popen(["make", "tests/%s.bg.out" % prog], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if proc.wait() != 0:
+                print "Compile benchmark %s: %sFAILED%s to compile tests/%s.bg.out" % (prog, FAILCOLOR, ENDCOLOR, prog)
+            else:
+                print "Compile benchmark %s: %sPASSED%s compilation" % (prog, OKCOLOR, ENDCOLOR)
+
 def print_test(prog, suffix, res):
     suff = suffix and (" (" + prog + ".in" + suffix + ")")
     if isinstance(res, str):
