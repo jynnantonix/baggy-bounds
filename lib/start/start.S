@@ -1,3 +1,5 @@
+// Modified for use in baggy bounds lib
+
 /* Startup code compliant to the ELF i386 ABI.
    Copyright (C) 1995-2013 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
