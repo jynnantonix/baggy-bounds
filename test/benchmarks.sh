@@ -1,1 +1,2 @@
-./runtests.sh --benchmark "$@"
+BASEDIR=`dirname $0`
+$BASEDIR/runtests.sh --benchmark "$@"

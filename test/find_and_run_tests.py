@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import os
+import os.path
 import subprocess
 import time
 import sys
@@ -28,42 +29,42 @@ def main():
     for prog in progs:
         inputs = [os.path.join(inputdir, filename) for filename in os.listdir(inputdir) if filename.startswith(prog+'.in')]
 
-        proc = subprocess.Popen(["make", "tests/%s.bg.out" % prog], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = subprocess.Popen(["make", os.path.join(srcdir, "%s.bg.out" % prog)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if proc.wait() != 0:
             print "Test %s: %sFAILED%s to compile tests/%s.bg.out" % (prog, FAILCOLOR, ENDCOLOR, prog)
             continue
         if benchmark_mode:
-            proc = subprocess.Popen(["make", "tests/%s.out" % prog], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            proc = subprocess.Popen(["make", os.path.join(srcdir, "%s.out" % prog)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             if proc.wait() != 0:
                 print "Test %s: %sFAILED%s to compile tests/%s.out" % (prog, FAILCOLOR, ENDCOLOR, prog)
                 continue
-            proc = subprocess.Popen(["make", "tests/%s.clangout" % prog], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            proc = subprocess.Popen(["make", os.path.join(srcdir, "%s.clangout" % prog)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             if proc.wait() != 0:
                 print "Test %s: %sFAILED%s to compile tests/%s.clangout" % (prog, FAILCOLOR, ENDCOLOR, prog)
                 continue
 
         if not inputs:
-            res = test_input("tests/%s.bg.out" % prog, None, "outputs/%s.out" % prog, prog)
+            res = test_input(os.path.join(srcdir, "%s.bg.out" % prog), None, os.path.join(outputdir, "%s.out" % prog), prog)
             if benchmark_mode:
-                res1 = test_input("tests/%s.out" % prog, None, "outputs/%s.out" % prog, prog)
-                res2 = test_input("tests/%s.clangout" % prog, None, "outputs/%s.out" % prog, prog)
+                res1 = test_input(os.path.join(srcdir, "%s.out" % prog), None, os.path.join(outputdir, "%s.out" % prog), prog)
+                res2 = test_input(os.path.join(srcdir, "%s.clangout" % prog), None, os.path.join(outputdir, "%s.out" % prog), prog)
                 print_benchmark(prog, "", res, res1, res2)
             else:
                 print_test(prog, "", res)
         else:
             for inp in sorted(inputs):
                 suffix = os.path.basename(inp)[len(prog+'.in'):]
-                res = test_input("tests/%s.bg.out" % prog, inp, "outputs/%s.out%s" % (prog, suffix), prog)
+                res = test_input(os.path.join(srcdir, "%s.bg.out" % prog), inp, os.path.join(outputdir, "%s.out%s" % (prog, suffix)), prog)
                 if benchmark_mode:
-                    res1 = test_input("tests/%s.out" % prog, inp, "outputs/%s.out%s" % (prog, suffix), prog)
-                    res2 = test_input("tests/%s.clangout" % prog, inp, "outputs/%s.out%s" % (prog, suffix), prog)
+                    res1 = test_input(os.path.join(srcdir, "%s.out" % prog), inp, os.path.join(outputdir, "%s.out%s" % (prog, suffix)), prog)
+                    res2 = test_input(os.path.join(srcdir, "%s.clangout" % prog), inp, os.path.join(outputdir, "%s.out%s" % (prog, suffix)), prog)
                     print_benchmark(prog, suffix, res, res1, res2)
                 else:
                     print_test(prog, suffix, res)
 
     if not benchmark_mode:
         for prog in BENCHMARK_FILES:
-            proc = subprocess.Popen(["make", "tests/%s.bg.out" % prog], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            proc = subprocess.Popen(["make", os.path.join(srcdir, "%s.bg.out" % prog)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             if proc.wait() != 0:
                 print "Compile benchmark %s: %sFAILED%s to compile tests/%s.bg.out" % (prog, FAILCOLOR, ENDCOLOR, prog)
             else:

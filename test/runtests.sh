@@ -1,4 +1,5 @@
 ulimit -s 1318912
-make -C ../pass/build/ > /dev/null
-make -C ../lib/ > /dev/null
-./find_and_run_tests.py "$@"
+BASEDIR=`dirname $0`
+make -C $BASEDIR/../pass/build/ > /dev/null
+make -C $BASEDIR/../lib/ > /dev/null
+$BASEDIR/find_and_run_tests.py "$@"
