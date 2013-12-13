@@ -3,17 +3,17 @@
 all: tests/test-1.out tests/test-2.out tests/test-3.out tests/test-4.out tests/test-5.out tests/test-6.out tests/test-7.out tests/test-8.out tests/test-9.out tests/test-10.out tests/test-11.out tests/test-12.out
 
 %.gccout : %.cpp
-	g++ -O2 $< -o $@
+	g++ -O3 $< -o $@
 
 %.clangout : %.cpp
-	clang++ -O2 $< -o $@
+	clang++ -O3 $< -o $@
 
 %.bc : %.cpp
-	clang++ -O2 -emit-llvm $< -c -o $@
+	clang++ -O3 -emit-llvm $< -c -o $@
 
 %.bg.ll : %.ll ../pass/build/BaggyBounds/BaggyBounds.so
-	#opt -load ../pass/build/BaggyBounds/BaggyBounds.so -baggy-save-local -baggy-pointers -dce -constprop -baggy-globals -baggy-rewriter -S -o $@ $<
-	opt -load ../pass/build/BaggyBounds/BaggyBounds.so -baggy-save-local-opt -baggy-pointers-opt -dce -constprop -baggy-globals -baggy-rewriter -S -o $@ $<
+	opt -load ../pass/build/BaggyBounds/BaggyBounds.so -baggy-save-local -baggy-pointers -dce -constprop -baggy-globals -baggy-rewriter -S -o $@ $<
+	#opt -load ../pass/build/BaggyBounds/BaggyBounds.so -baggy-save-local-opt -baggy-pointers-opt -dce -constprop -baggy-globals -baggy-rewriter -S -o $@ $<
 
 %.ll : %.bc
 	llvm-dis -o $@ $<
