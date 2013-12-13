@@ -10,29 +10,38 @@ lines = f.readlines()
 testnames = eval(lines[0])
 without_baggy = eval(lines[1])
 with_baggy = eval(lines[2])
+optimized = eval(lines[3])
 
 f.close()
 
 n_groups = len(testnames)
 index = np.arange(n_groups)
-bar_width = 0.35
+bar_width = 0.30
 
 opacity = 0.4
 error_config = {'ecolor': '0.3'}
 
-rects1 = plt.bar(index, with_baggy, bar_width,
+rects2 = plt.bar(index, without_baggy, bar_width,
+                 alpha=opacity,
+                 color='r',
+                 yerr=None,
+                 error_kw=error_config,
+                 label='buddy allocator without baggy')
+
+rects1 = plt.bar(index + bar_width, with_baggy, bar_width,
                  alpha=opacity,
                  color='b',
                  yerr=None,
                  error_kw=error_config,
                  label='buddy allocator with baggy')
 
-rects2 = plt.bar(index + bar_width, without_baggy, bar_width,
+
+rects3 = plt.bar(index + bar_width * 2, optimized, bar_width,
                  alpha=opacity,
-                 color='r',
+                 color='g',
                  yerr=None,
                  error_kw=error_config,
-                 label='buddy allocator without baggy')
+                 label='optimized')
 
 plt.xlabel('')
 plt.ylabel('Performance')

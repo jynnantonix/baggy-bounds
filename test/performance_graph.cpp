@@ -47,6 +47,7 @@ int main() {
 	ifstream noopt("benchoutput.txt"), opt("benchoutput-opt.txt");
 	vector<string> test;
 	vector<double> clang;
+        vector<double> clangopt;
 	vector<double> without;
 	vector<double> with;
 	vector<double> afteropt;
@@ -74,6 +75,7 @@ int main() {
 		getline(noopt, line);
 		with.push_back(toDouble(tokenize(line)[3].substr(1)));
 		getline(opt, line);
+                clangopt.push_back(toDouble(tokenize(line)[2].substr(1)));
 		getline(opt, line);
 		getline(opt, line);
 		afteropt.push_back(toDouble(tokenize(line)[3].substr(1)));
@@ -83,7 +85,7 @@ int main() {
 	for (int i = 0; i < (int)without.size(); ++i) {
 		without[i] /= clang[i];
 		with[i] /= clang[i];
-		afteropt[i] /= clang[i];
+		afteropt[i] /= clangopt[i];
 	}
 
 	cout << toStr(test) << endl;
