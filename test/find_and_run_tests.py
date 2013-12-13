@@ -5,7 +5,7 @@ import subprocess
 import time
 import sys
 
-BENCHMARK_FILES = ["stress_slowpath","seating","qsort","qsort_indices", "qsort_vector", "matrix_mult"]
+BENCHMARK_FILES = ["seating","strees_slowpath", "qsort","qsort_indices", "qsort_vector", "matrix_mult"]
 
 FAILCOLOR = '\033[91m'
 OKCOLOR = '\033[92m'

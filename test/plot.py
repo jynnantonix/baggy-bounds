@@ -25,18 +25,18 @@ rects1 = plt.bar(index, with_baggy, bar_width,
                  color='b',
                  yerr=None,
                  error_kw=error_config,
-                 label='binary allocator with baggy')
+                 label='buddy allocator with baggy')
 
 rects2 = plt.bar(index + bar_width, without_baggy, bar_width,
                  alpha=opacity,
                  color='r',
                  yerr=None,
                  error_kw=error_config,
-                 label='binary allocator without baggy')
+                 label='buddy allocator without baggy')
 
-plt.xlabel('Test')
+plt.xlabel('')
 plt.ylabel('Performance')
-plt.title('Performance normalized by LLVM with standard allocator')
+plt.title('')
 plt.xticks(index + bar_width, testnames)
 plt.legend()
 

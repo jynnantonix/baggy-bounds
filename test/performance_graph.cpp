@@ -1,6 +1,7 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <fstream>
 #include <vector>
 using namespace std;
 
@@ -43,41 +44,53 @@ string toStr(vector<double> str) {
 
 int main() {
 	string line;
+	ifstream noopt("benchoutput.txt"), opt("benchoutput-opt.txt");
 	vector<string> test;
 	vector<double> clang;
 	vector<double> without;
 	vector<double> with;
+	vector<double> afteropt;
 	int seating_count = 0;
-	while (getline(cin, line)) {
+	while (getline(noopt, line)) {
 		string testname = tokenize(line)[1];
 		if (testname[testname.size() - 1] == ':')
 			testname = testname.substr(0, testname.size() - 1);
+		getline(opt, line);
 		if (testname == "seating") {
 			++seating_count;
-			if (seating_count <= 6 || seating_count > 8) { // ignore other seating tests
-				getline(cin, line);
-				getline(cin, line);
-				getline(cin, line);
+			if (seating_count <= 6 || seating_count > 7) { // ignore other seating tests
+				for (int i = 0; i < 3; ++i) {
+					getline(noopt, line);
+					getline(opt, line);
+				}
 				continue;
 			}
 		}
 		test.push_back("\"" + testname + "\"");
-		getline(cin, line);
+		getline(noopt, line);
 		clang.push_back(toDouble(tokenize(line)[2].substr(1)));
-		getline(cin, line);
+		getline(noopt, line);
 		without.push_back(toDouble(tokenize(line)[3].substr(1)));
-		getline(cin, line);
+		getline(noopt, line);
 		with.push_back(toDouble(tokenize(line)[3].substr(1)));
+		getline(opt, line);
+		getline(opt, line);
+		getline(opt, line);
+		afteropt.push_back(toDouble(tokenize(line)[3].substr(1)));
 	}
 
 	// normalize with respect to clang
 	for (int i = 0; i < (int)without.size(); ++i) {
 		without[i] /= clang[i];
 		with[i] /= clang[i];
+		afteropt[i] /= clang[i];
 	}
 
 	cout << toStr(test) << endl;
 	cout << toStr(without) << endl;
 	cout << toStr(with) << endl;
+	cout << toStr(afteropt) << endl;
+	opt.close();
+	noopt.close();
 	return 0;
 }
