@@ -3,5 +3,6 @@ add_llvm_loadable_module(BaggyBounds
   BaggyBoundsSaveLocal.cpp
   BaggyBoundsPointers.cpp
   BaggyBoundsRewriter.cpp
+  BaggyLoopAnalysis.cpp
   Util.cpp
 )

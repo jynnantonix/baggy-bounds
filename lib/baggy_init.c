@@ -10,6 +10,26 @@
 
 #include "address_constants.h"
 
+/**
+ * This file is for initialization. Specifically, we
+ * 1. Call buddy_allocator_init to initialize the dynamic memory allocator's
+ *    data structures.
+ *
+ * 2. Set up the baggy_size_table, a table of size 2^32 / SLOT_SIZE = 2^18 bytes,
+ *    for storing allocations sizes. Note that the dynamic memory allocator also
+ *    makes a little bit of use of this.
+ * 
+ * 3. Do a lot of evil hacks to make sure everything we need is in the first half
+ *    of memory (2 GB). Unmap everything above memory.
+ *
+ * baggy_init is called first thing -- before any initialization at all -- in order
+ * to manage some things like environment variables and argv before main gets its
+ * hands on them. See start/start.S (a modified version of glibc's start.S) where
+ * we define _start in order to call baggy_init.
+ *
+ * We beliee this nastiness is mostly a symptom of us being 32-bit.
+ */
+
 unsigned char* baggy_size_table;
 
 unsigned int page_size;
